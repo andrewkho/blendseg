@@ -49,7 +49,7 @@ class BlendSeg (bpy.types.Operator):
     image_spacing = tuple([0.468,0.468,0.5])
 
     def execute(self, context):
-        print("Blendseg is executing!\n")
+        print("\nBlendseg is executing!")
 
         mesh = bpy.data.objects['Mesh']
         self.update_all_intersections(mesh)
@@ -66,7 +66,7 @@ class BlendSeg (bpy.types.Operator):
         self.load_img_stacks()
         self.create_planes()
         end = time()
-        print("took " + str(start-end) + " seconds")
+        print("took " + str(end-start) + " seconds")
 
     def load_img_stacks(self):
         print ("Looking for " + BlendSeg.letter + " image sequence")
@@ -120,14 +120,26 @@ class BlendSeg (bpy.types.Operator):
         print("Took %1.5f seconds" % (seconds))
 
         if (not sp.hide):
+            print("Computing sagittal intersection...")
+            start = time()
             loop1 = self.compute_intersection(
                 bpy.context.scene, sp_cmesh, mesh_cmesh, self.sag_plane.loop_name)
+            seconds = time() - start
+            print("Took %1.5f seconds" % (seconds))
         if (not ap.hide):
+            print("Computing axial intersection...")
+            start = time()
             loop2 = self.compute_intersection(
                 bpy.context.scene, ap_cmesh, mesh_cmesh, self.axi_plane.loop_name)
+            seconds = time() - start
+            print("Took %1.5f seconds" % (seconds))
         if (not cp.hide):
+            print("Computing coronal intersection...")
+            start = time()
             loop3 = self.compute_intersection(
                 bpy.context.scene, cp_cmesh, mesh_cmesh, self.cor_plane.loop_name)
+            seconds = time() - start
+            print("Took %1.5f seconds" % (seconds))
             
         """ These need to be hidden/shown after the all computations """
         if (not sp.hide):
@@ -198,7 +210,12 @@ class BlendSeg (bpy.types.Operator):
         if (mesh == None or plane == None):
             raise ValueError('mesh or plane is None!')
 
+        # print("Computing crs points...")
+        # start = time()
         crs_pnts = object_intersection.intersect (plane, mesh)
+        # seconds = time() - start
+        # print("Took %1.5f seconds" % (seconds))
+
 
         """ attempt to find our old loop and delete if exists """
         try:
@@ -216,6 +233,8 @@ class BlendSeg (bpy.types.Operator):
         loop = bpy.context.object
         loop.name = loop_name
 
+        # print("Computing loop...")
+        # start = time()
         # add vertices to self plane
         self.use_diagonals = False
         for l in crs_pnts:
@@ -229,13 +248,16 @@ class BlendSeg (bpy.types.Operator):
             #bpy.ops.mesh.select_all(action='DESELECT')
             bpy.ops.object.mode_set(mode='OBJECT')#bpy.ops.object.editmode_toggle()
             #bpy.context.scene.objects.active = oldactive
-                
+
+        # seconds = time()-start
+        # print("Took %1.5f seconds" % seconds)
+        
         #select the newly created vertices:
         found = 0
         for v in loop.data.vertices: 
              found += 1
              v.select = True
-        print ("found " + str(found) + " vertices to select\n")
+        print ("found " + str(found) + " vertices to select")
                 
         #enter edit mode (to let the user to evaluate the results):
         #bpy.ops.object.mode_set(mode='EDIT')#bpy.ops.object.editmode_toggle()

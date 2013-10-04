@@ -7,6 +7,7 @@ import bpy
 from bpy_extras import image_utils
 
 import slice_plane
+import object_intersection
 
 class BlendSeg (bpy.types.Operator):
     """ Compute and render the intersections of a mesh.
@@ -98,6 +99,7 @@ class BlendSeg (bpy.types.Operator):
 
     def update_all_intersections (self, mesh):
         mesh.hide = False
+        """ Attempt to find our planes """
         try:
             sp = bpy.data.objects[self.sag_plane.plane_name]
             ap = bpy.data.objects[self.axi_plane.plane_name]
@@ -105,13 +107,27 @@ class BlendSeg (bpy.types.Operator):
         except KeyError:
             print("Warning! Can't find all planes by name...")
             return
+
+        # Generate CMesh objects for planes, mesh
         
+        print("Generating collision-mesh objects")
+        start = time()
+        sp_cmesh = object_intersection.CMesh(sp, False, False)
+        ap_cmesh = object_intersection.CMesh(ap, False, False)
+        cp_cmesh = object_intersection.CMesh(cp, False, False)
+        mesh_cmesh = object_intersection.CMesh(mesh, False, False)
+        seconds = time() - start
+        print("Took %1.5f seconds" % (seconds))
+
         if (not sp.hide):
-            loop1 = self.sag_plane.update_intersection(bpy.context.scene, mesh)
+            loop1 = self.compute_intersection(
+                bpy.context.scene, sp_cmesh, mesh_cmesh, self.sag_plane.loop_name)
         if (not ap.hide):
-            loop2 = self.axi_plane.update_intersection(bpy.context.scene, mesh)
+            loop2 = self.compute_intersection(
+                bpy.context.scene, ap_cmesh, mesh_cmesh, self.axi_plane.loop_name)
         if (not cp.hide):
-            loop3 = self.cor_plane.update_intersection(bpy.context.scene, mesh)
+            loop3 = self.compute_intersection(
+                bpy.context.scene, cp_cmesh, mesh_cmesh, self.cor_plane.loop_name)
             
         """ These need to be hidden/shown after the all computations """
         if (not sp.hide):
@@ -173,6 +189,61 @@ class BlendSeg (bpy.types.Operator):
         self.sag_plane.plane.hide = True
         self.cor_plane.plane.hide = False
         self.mesh.hide = True
+        
+    def compute_intersection (self, scene, plane, mesh, loop_name):
+        """ Computes intersection of two CMesh's
+        
+        Returns an object representing the intersection contour.
+        """
+        if (mesh == None or plane == None):
+            raise ValueError('mesh or plane is None!')
+
+        crs_pnts = object_intersection.intersect (plane, mesh)
+
+        """ attempt to find our old loop and delete if exists """
+        try:
+            loop = scene.objects[loop_name]
+        except KeyError:
+            print("Couldn't find old loop! Continuing")
+        else:
+            scene.objects.unlink(loop)
+            bpy.data.objects.remove(loop)
+
+        """ create a new loop object """
+        if (bpy.ops.object.mode_set.poll()):
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.add(type='MESH')
+        loop = bpy.context.object
+        loop.name = loop_name
+
+        # add vertices to self plane
+        self.use_diagonals = False
+        for l in crs_pnts:
+            object_intersection.create(l, loop, self.use_diagonals)
+                
+        # we must set the mode to edit before points can be selected
+        if crs_pnts: #any other method of unselecting did not work here: 
+            oldactive = scene.objects.active
+            scene.objects.active = bpy.data.objects[loop_name]
+            #bpy.ops.object.mode_set(mode='EDIT')#bpy.ops.object.editmode_toggle()
+            #bpy.ops.mesh.select_all(action='DESELECT')
+            bpy.ops.object.mode_set(mode='OBJECT')#bpy.ops.object.editmode_toggle()
+            #bpy.context.scene.objects.active = oldactive
+                
+        #select the newly created vertices:
+        found = 0
+        for v in loop.data.vertices: 
+             found += 1
+             v.select = True
+        print ("found " + str(found) + " vertices to select\n")
+                
+        #enter edit mode (to let the user to evaluate the results):
+        #bpy.ops.object.mode_set(mode='EDIT')#bpy.ops.object.editmode_toggle()
+            
+        if not crs_pnts:
+            print ("No intersection found between this and the other selected object.")
+
+        return loop
 
 # callback for updating plane images
 # We need to try-except each call so that if one is deleted,

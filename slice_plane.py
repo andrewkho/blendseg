@@ -3,7 +3,7 @@ import imp
 import bpy
 from math import pi
 from mathutils import Vector
-import object_intersection
+
 from time import time
 
 class Orientation (object):
@@ -58,8 +58,6 @@ class Orientation (object):
 
     _orientation = property (_get_orientation, _set_orientation)
 
-
-
 class SlicePlane (object):
     """ A plane with orthogonal direction Orientation.(AXIAL|SAGITTAL|CORONAL)
 
@@ -107,82 +105,6 @@ class SlicePlane (object):
             
         plane = self.create_plane()
         self.update_image(plane)
-
-    # def set_mesh (self, a_mesh):
-    #     self.mesh = a_mesh
-
-    def update_intersection (self, scene, mesh):
-        """ Computes intersection of this plane with the given mesh.
-        Returns an object representing the intersection contour.
-        """
-        if (mesh == None):
-            raise ValueError('mesh is None!')
-
-        """ attempt to find our plane """
-        try:
-            plane = scene.objects[self.plane_name]
-        except KeyError:
-            print("Couldn't find " + self.plane_name + "! Abort intersection")
-            return
-
-        print("Generating collision-mesh objects")
-        start = time()
-        A = object_intersection.CMesh(plane,False,False)
-        B = object_intersection.CMesh(mesh,False,False)
-        seconds = time() - start
-        print("Took %1.5f seconds" % (seconds))
-
-        print ("Updating intersection for " + self.plane_name + "...")
-        start = time()
-        crs_pnts = object_intersection.intersect (A,B)
-        seconds = time() - start
-        print("In %1.5f seconds created: %d edges, found: %d raw cross points" %
-              (seconds, len(A._CMesh__edges), len(crs_pnts)))
-
-        """ attempt to find our old loop and delete if exists """
-        try:
-            loop = scene.objects[self.loop_name]
-        except KeyError:
-            print("Couldn't find old loop! Continuing")
-        else:
-            scene.objects.unlink(loop)
-            bpy.data.objects.remove(loop)
-
-        """ create a new loop object """
-        if (bpy.ops.object.mode_set.poll()):
-            bpy.ops.object.mode_set(mode='OBJECT')
-        bpy.ops.object.add(type='MESH')
-        loop = bpy.context.object
-        loop.name = self.loop_name
-
-        # add vertices to self plane
-        self.use_diagonals = False
-        for l in crs_pnts:
-            object_intersection.create(l, loop, self.use_diagonals)
-                
-        # we must set the mode to edit before points can be selected
-        if crs_pnts: #any other method of unselecting did not work here: 
-            oldactive = scene.objects.active
-            scene.objects.active = bpy.data.objects[self.loop_name]
-            #bpy.ops.object.mode_set(mode='EDIT')#bpy.ops.object.editmode_toggle()
-            #bpy.ops.mesh.select_all(action='DESELECT')
-            bpy.ops.object.mode_set(mode='OBJECT')#bpy.ops.object.editmode_toggle()
-            #bpy.context.scene.objects.active = oldactive
-                
-        #select the newly created vertices:
-        found = 0
-        for v in loop.data.vertices: 
-             found += 1
-             v.select = True
-        print ("found " + str(found) + " vertices to select\n")
-                
-        #enter edit mode (to let the user to evaluate the results):
-        #bpy.ops.object.mode_set(mode='EDIT')#bpy.ops.object.editmode_toggle()
-            
-        if not crs_pnts:
-            print ("No intersection found between this and the other selected object.")
-
-        return loop
 
     def enforce_location (self, plane):
         """ This method modifies the position of the given plane object

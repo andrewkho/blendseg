@@ -89,7 +89,7 @@ from time import time
 #        CPoint (it is the result - cross point, not vertex!)
 ####constants---------------------------------------------------------------
 EPSILON    = 0.00000001 #the tolerance of crossing faces (in world units)
-BOX_EPSILON = 0*EPSILON #the tolerance of comparing 'boxes', containing
+BOX_EPSILON = 1*EPSILON #the tolerance of comparing 'boxes', containing
                         #faces. Actually it seems to have no influence
                         #on the final result.
 PIXELS_PER_ICON = 16    #used in the formatting the message popup
@@ -230,6 +230,10 @@ class CMesh:
                     else: #cut along (0, 2) edge
                         self.AddFace(f, (keys[0],keys[1],keys[2]))
                         self.AddFace(f, (keys[0],keys[2],keys[3]))
+                        
+    def getVerts(self):
+        self.verts = self.__verts
+        return self.verts
                         
     def name(self):
         """Returns the name of wrapped Blender Mesh object

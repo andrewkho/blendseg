@@ -6,7 +6,9 @@ from time import time
 import bpy
 from bpy_extras import image_utils
 
+import imp
 import slice_plane
+imp.reload(slice_plane)
 
 class BlendSeg (bpy.types.Operator):
     """ Compute and render the intersections of a mesh.

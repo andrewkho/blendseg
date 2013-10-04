@@ -3,8 +3,13 @@ import imp
 import bpy
 from math import pi
 from mathutils import Vector
-import object_intersection
 from time import time
+
+import object_intersection
+import aabb_tree
+imp.reload(object_intersection)
+imp.reload(aabb_tree)
+
 
 class Orientation (object):
     """ An orientation which may be 'AXIAL', 'SAGITTAL', or 'CORONAL'.
@@ -21,7 +26,7 @@ class Orientation (object):
         if (dirn is not 'AXIAL' and
             dirn is not 'SAGITTAL' and
             dirn is not 'CORONAL'):
-            raise NameException("dirn must be AXIAL, SAGITThAL, or CORONAL")
+            raise NameException("dirn must be AXIAL, SAGITTAL, or CORONAL")
 
         if dirn in Orientation._instances:
             return Orientation._instances[dirn]
@@ -91,25 +96,18 @@ class SlicePlane (object):
         self.spacing = spacing
         
         if (self.orientation == Orientation('AXIAL')):
-            #self.plane_name = 'PlaneAxi'
             self.loop_name = 'loopAxi'
         elif (self.orientation == Orientation('SAGITTAL')):
-            #self.plane_name = 'PlaneSag'
             self.loop_name = 'loopSag'
         elif (self.orientation == Orientation('CORONAL')):
-            #self.plane_name = 'PlaneCor'
             self.loop_name = 'loopCor'
         else:
             raise ValueError("WHy isn't it OrientatioN?")
-
 
         self.plane_name = str(self.orientation)
             
         plane = self.create_plane()
         self.update_image(plane)
-
-    # def set_mesh (self, a_mesh):
-    #     self.mesh = a_mesh
 
     def update_intersection (self, scene, mesh):
         """ Computes intersection of this plane with the given mesh.
@@ -127,11 +125,18 @@ class SlicePlane (object):
 
         print("Generating collision-mesh objects")
         start = time()
-        A = object_intersection.CMesh(plane,False,False)
-        B = object_intersection.CMesh(mesh,False,False)
+        A = object_intersection.CMesh(mesh,False,False)
+        B = object_intersection.CMesh(plane,False,False)
         seconds = time() - start
         print("Took %1.5f seconds" % (seconds))
 
+        print("Constructing AABB Trees...")
+        start = time()
+        aabb_A = aabb_tree.AABBTree(A)
+        aabb_B = aabb_tree.AABBTree(B)
+        seconds = time() - start
+        print("Took %1.5f seconds" % (seconds))
+        
         print ("Updating intersection for " + self.plane_name + "...")
         start = time()
         crs_pnts = object_intersection.intersect (A,B)

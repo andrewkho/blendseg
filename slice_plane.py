@@ -7,10 +7,6 @@ from mathutils import Vector
 from time import time
 
 import object_intersection
-import aabb_tree
-imp.reload(object_intersection)
-imp.reload(aabb_tree)
-
 
 class Orientation (object):
     """ An orientation which may be 'AXIAL', 'SAGITTAL', or 'CORONAL'.

@@ -64,43 +64,43 @@ class AABBNode (object):
                 maxi = i
 
         """ Sort faces based on minimum point in maxi dimension """
-        sorted_faces, pts = self.quicksort_max_min(faces, maxi)
+        sorted_faces = self.quicksort(faces, maxi)
         split_index = len(sorted_faces)//2
         left_sorted_faces = sorted_faces[:split_index]
         right_sorted_faces = sorted_faces[split_index:]
 
-        left_max_pt = pts[0]
-        right_max_pt = pts[1]
-        left_min_pt = pts[2]
-        right_min_pt = pts[3]
-        # sysmin = sys.float_info.min
-        # sysmax = sys.float_info.max
+        sysmin = sys.float_info.min
+        sysmax = sys.float_info.max
         
-        # left_max_pt = [sysmin, sysmin, sysmin]
-        # left_min_pt = [sysmax, sysmax, sysmax]
-        # right_max_pt = [sysmin, sysmin, sysmin]
-        # right_min_pt = [sysmax, sysmax, sysmax]
+        left_max_pt = [sysmin, sysmin, sysmin]
+        left_min_pt = [sysmax, sysmax, sysmax]
+        right_max_pt = [sysmin, sysmin, sysmin]
+        right_min_pt = [sysmax, sysmax, sysmax]
 
-        # for face in left_sorted_faces:
-        #     left_max_pt[0] = max(left_max_pt[0], face.max[0])
-        #     left_max_pt[1] = max(left_max_pt[1], face.max[1])
-        #     left_max_pt[2] = max(left_max_pt[2], face.max[2])
-        #     left_min_pt[0] = min(left_min_pt[0], face.min[0])
-        #     left_min_pt[1] = min(left_min_pt[1], face.min[1])
-        #     left_min_pt[2] = min(left_min_pt[2], face.min[2])
+        for face in left_sorted_faces:
+            left_max_pt[0] = max(left_max_pt[0], face.max[0])
+            left_max_pt[1] = max(left_max_pt[1], face.max[1])
+            left_max_pt[2] = max(left_max_pt[2], face.max[2])
+            left_min_pt[0] = min(left_min_pt[0], face.min[0])
+            left_min_pt[1] = min(left_min_pt[1], face.min[1])
+            left_min_pt[2] = min(left_min_pt[2], face.min[2])
 
-        # for face in right_sorted_faces:
-        #     right_max_pt[0] = max(right_max_pt[0], face.max[0])
-        #     right_max_pt[1] = max(right_max_pt[1], face.max[1])
-        #     right_max_pt[2] = max(right_max_pt[2], face.max[2])
-        #     right_min_pt[0] = min(right_min_pt[0], face.min[0])
-        #     right_min_pt[1] = min(right_min_pt[1], face.min[1])
-        #     right_min_pt[2] = min(right_min_pt[2], face.min[2])
+        for face in right_sorted_faces:
+            right_max_pt[0] = max(right_max_pt[0], face.max[0])
+            right_max_pt[1] = max(right_max_pt[1], face.max[1])
+            right_max_pt[2] = max(right_max_pt[2], face.max[2])
+            right_min_pt[0] = min(right_min_pt[0], face.min[0])
+            right_min_pt[1] = min(right_min_pt[1], face.min[1])
+            right_min_pt[2] = min(right_min_pt[2], face.min[2])
 
         self.left_node = AABBNode(left_sorted_faces, left_max_pt, left_min_pt)
         self.right_node = AABBNode(right_sorted_faces, right_max_pt, right_min_pt)
 
     def quicksort(self, faces, dim):
+        """ Quicksort algorithm applied to a list of faces.
+        Sort along dimension (0, 1, or 2) by minimum value of BB.
+        """
+
         if (len(faces) <= 1):
             return faces
         
@@ -128,51 +128,3 @@ class AABBNode (object):
         res.extend(self.quicksort(greater,dim))
         
         return res
-
-    def quicksort_max_min(self, faces, dim):
-        """ Quicksort algorithm applied to a list of faces.
-        Sort along dimension (0, 1, or 2) by minimum value of BB.
-
-        Also calculates max/min points.
-        """
-        
-        if (len(faces) <= 1):
-            return faces,[]
-        
-        less = list()
-        greater = list()
-        pivot = faces[len(faces)//2]
-        faces.remove(pivot)
-        
-        sysmin = sys.float_info.min
-        sysmax = sys.float_info.max
-
-        left_max_pt = [sysmin, sysmin, sysmin]
-        left_min_pt = [sysmax, sysmax, sysmax]
-        right_max_pt = [sysmin, sysmin, sysmin]
-        right_min_pt = [sysmax, sysmax, sysmax]
-
-        for face in faces:
-            if face.min[dim] < pivot.min[dim]:
-                less.append(face)
-                left_max_pt[0] = max(left_max_pt[0], face.max[0])
-                left_max_pt[1] = max(left_max_pt[1], face.max[1])
-                left_max_pt[2] = max(left_max_pt[2], face.max[2])
-                left_min_pt[0] = min(left_min_pt[0], face.min[0])
-                left_min_pt[1] = min(left_min_pt[1], face.min[1])
-                left_min_pt[2] = min(left_min_pt[2], face.min[2])
-            else:
-                greater.append(face)
-                right_max_pt[0] = max(right_max_pt[0], face.max[0])
-                right_max_pt[1] = max(right_max_pt[1], face.max[1])
-                right_max_pt[2] = max(right_max_pt[2], face.max[2])
-                right_min_pt[0] = min(right_min_pt[0], face.min[0])
-                right_min_pt[1] = min(right_min_pt[1], face.min[1])
-                right_min_pt[2] = min(right_min_pt[2], face.min[2])
-
-        res = self.quicksort(less,dim)
-        res.append(pivot)
-        res.extend(self.quicksort(greater,dim))
-        
-        return res, [left_max_pt, right_max_pt, left_min_pt, right_min_pt]
-

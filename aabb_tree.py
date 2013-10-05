@@ -27,7 +27,7 @@ class AABBTree (object):
         """ Return a list of pairs of faces whose aabb's collide """
         pairs = list()
 
-        pairs = self._tree.collides_with(other_tree._tree)
+        pairs = self._tree.collides_with_tree(other_tree._tree)
 
         return pairs
         
@@ -84,6 +84,9 @@ class AABBNode (object):
         self.left_node = AABBNode(left_sorted_faces)
         self.right_node = AABBNode(right_sorted_faces)
 
+    def is_leaf(self):
+        return self.left_node is None and self.right_node is None
+
     def collides_with(self, pt_max, pt_min):
         for i in range(0,3):
             if (self.min_pt[i] > pt_max[i] or self.max_pt[i] < pt_min[i]): 
@@ -96,8 +99,26 @@ class AABBNode (object):
                 self.right_node.collides_with(pt_max, pt_min))
 
     def collides_with_tree(self, other_tree):
-        pass
+        for i in range(0,3):
+            if (self.min_pt[i] > other_tree.max_pt[i] or
+                self.max_pt[i] < other_tree.min_pt[i]): 
+                return []
 
+        if self.is_leaf():
+            if other_tree.is_leaf():
+                return [(self.leaf, other_tree.leaf)]
+            else:
+                return self.collides_with_tree(other_tree.left_node) + \
+                    self.collides_with_tree(other_tree.right_node)
+        elif other_tree.is_leaf():
+            return self.left_node.collides_with_tree(other_tree) + \
+                self.right_node.collides_with_tree(other_tree)
+        else:
+            return self.left_node.collides_with_tree(other_tree.left_node) + \
+                self.left_node.collides_with_tree(other_tree.right_node) + \
+                self.right_node.collides_with_tree(other_tree.left_node) + \
+                self.right_node.collides_with_tree(other_tree.right_node)
+        
     def quicksort(self, faces, dim):
         """ Quicksort algorithm applied to a list of faces.
         Sort along dimension (0, 1, or 2) by minimum value of BB.

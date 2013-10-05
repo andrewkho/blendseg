@@ -836,9 +836,8 @@ def intersect_split(plane, mesh, dirn, divide):
     while cpoints:
         result.append(getLoop(cpoints))
     return result
-    
 
-def intersect_aabb(A,B, aabb_A):
+def intersect_aabb(A,B, aabb_A, aabb_B):
     """ Compute the intersection of two mesh objects using precomputed
     AABB for speedup.
 
@@ -847,11 +846,16 @@ def intersect_aabb(A,B, aabb_A):
     global _cpoints
     _cpoints = []
     """ Here use the AABB instead of brute force """
-    for i in A.faces.keys():
-        for j in B.faces.keys():
-            """ Check for AABB collision here """
-            if aabb_A.collides_with(B.faces[j]):
-                A.Intersect(i,B.faces[j])
+    # for i in A.faces.keys():
+    #     for j in B.faces.keys():
+    #         """ Check for AABB collision here """
+    #         if aabb_A.collides_with(B.faces[j]):
+    #             A.Intersect(i,B.faces[j])
+    # pairs = aabb_A.collides_with_tree(aabb_B)
+    pairs = aabb_B.collides_with_tree(aabb_A)
+    
+    for pair in pairs:
+        B.Intersect(pair[0].key, pair[1])
             
     result = []
     cpoints = _cpoints[:]

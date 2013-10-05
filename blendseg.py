@@ -237,7 +237,8 @@ class BlendSeg (bpy.types.Operator):
         # print("Computing crs points...")
         # start = time()
         # crs_pnts = object_intersection.intersect(plane, mesh)
-        crs_pnts = object_intersection.intersect_aabb(plane, mesh, plane_tree)
+        crs_pnts = object_intersection.intersect_aabb(plane, mesh, plane_tree, mesh_tree)
+        # crs_pnts = object_intersection.intersect_aabb(plane, mesh, plane_tree)
         # crs_pnts = object_intersection.intersect_aabb(mesh, plane, mesh_tree)
         # crs_pnts = object_intersection.intersect_split(plane, mesh, dirn, divide)
         # seconds = time() - start

@@ -13,6 +13,8 @@ import object_intersection
 imp.reload(object_intersection)
 import aabb_tree
 imp.reload(aabb_tree)
+import aabb_directional_tree
+imp.reload(aabb_directional_tree)
 
 class BlendSeg (bpy.types.Operator):
     """ Compute and render the intersections of a mesh.
@@ -135,12 +137,32 @@ class BlendSeg (bpy.types.Operator):
         mesh_tree = aabb_tree.AABBTree(self.mesh_cmesh)
         seconds = time() - start
         print("Took %1.5f seconds" % (seconds))
+        mesh_stree = mesh_tree
+        mesh_atree = mesh_tree
+        mesh_ctree = mesh_tree
+
+        # print("Generating Directional AABB Trees...")
+        # start = time()
+        # sp_tree = aabb_tree.AABBTree(self.sp_cmesh)
+        # ap_tree = aabb_tree.AABBTree(self.ap_cmesh)
+        # cp_tree = aabb_tree.AABBTree(self.cp_cmesh)
+        # mesh_stree = aabb_directional_tree.AABBDirectionalTree(
+        #     self.mesh_cmesh, slice_plane.Orientation('SAGITTAL').__index__())
+        # mesh_atree = aabb_directional_tree.AABBDirectionalTree(
+        #     self.mesh_cmesh, slice_plane.Orientation('AXIAL').__index__())
+        # mesh_ctree = aabb_directional_tree.AABBDirectionalTree(
+        #     self.mesh_cmesh, slice_plane.Orientation('CORONAL').__index__())
+        # seconds = time() - start
+        # print("Took %1.5f seconds" % (seconds))
 
         print("DEBUG: refreshing aabb trees to see how fast...")
         start = time()
         sp_tree.update_bbs()
         ap_tree.update_bbs()
         cp_tree.update_bbs()
+        mesh_stree.update_bbs()
+        # mesh_atree.update_bbs()
+        # mesh_ctree.update_bbs()
         seconds = time() - start
         print("Took %1.5f seconds" % (seconds))
 
@@ -148,7 +170,7 @@ class BlendSeg (bpy.types.Operator):
             print("Computing sagittal intersection...")
             start = time()
             loop1 = self.compute_intersection(
-                bpy.context.scene, self.sp_cmesh, self.mesh_cmesh, sp_tree, mesh_tree,
+                bpy.context.scene, self.sp_cmesh, self.mesh_cmesh, sp_tree, mesh_stree,
                 self.sag_plane.orientation, sp.location[self.sag_plane.orientation],
                 self.sag_plane.loop_name)
             seconds = time() - start
@@ -157,7 +179,7 @@ class BlendSeg (bpy.types.Operator):
             print("Computing axial intersection...")
             start = time()
             loop2 = self.compute_intersection(
-                bpy.context.scene, self.ap_cmesh, self.mesh_cmesh, ap_tree, mesh_tree,
+                bpy.context.scene, self.ap_cmesh, self.mesh_cmesh, ap_tree, mesh_atree,
                 self.axi_plane.orientation, ap.location[self.axi_plane.orientation],
                 self.axi_plane.loop_name)
             seconds = time() - start
@@ -166,7 +188,7 @@ class BlendSeg (bpy.types.Operator):
             print("Computing coronal intersection...")
             start = time()
             loop3 = self.compute_intersection(
-                bpy.context.scene, self.cp_cmesh, self.mesh_cmesh, cp_tree, mesh_tree,
+                bpy.context.scene, self.cp_cmesh, self.mesh_cmesh, cp_tree, mesh_ctree,
                 self.cor_plane.orientation, cp.location[self.cor_plane.orientation],
                 self.cor_plane.loop_name)
             seconds = time() - start
@@ -233,8 +255,8 @@ class BlendSeg (bpy.types.Operator):
         self.cor_plane.plane.hide = False
         self.mesh.hide = True
         
-    #def compute_intersection (self, scene, plane, mesh, dirn, divide, loop_name):
-    def compute_intersection (self, scene, plane, mesh, plane_tree, mesh_tree, dirn, divide, loop_name):
+    def compute_intersection (self, scene, plane, mesh,
+                              plane_tree, mesh_tree, dirn, divide, loop_name):
         """ Computes intersection of two CMesh's
         
         Returns an object representing the intersection contour.
@@ -244,10 +266,11 @@ class BlendSeg (bpy.types.Operator):
 
         # print("Computing crs points...")
         # start = time()
+        """ Original Brute force method """
         # crs_pnts = object_intersection.intersect(plane, mesh)
+        """ Intersect two trees """ 
         crs_pnts = object_intersection.intersect_aabb(plane, mesh, plane_tree, mesh_tree)
-        # crs_pnts = object_intersection.intersect_aabb(plane, mesh, plane_tree)
-        # crs_pnts = object_intersection.intersect_aabb(mesh, plane, mesh_tree)
+        """ Brute force method with single division line """
         # crs_pnts = object_intersection.intersect_split(plane, mesh, dirn, divide)
         # seconds = time() - start
         # print("Took %1.5f seconds" % (seconds))

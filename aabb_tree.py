@@ -25,12 +25,15 @@ class AABBTree (object):
 
     def collides_with_tree(self, other_tree):
         """ Return a list of pairs of faces whose aabb's collide """
-        pairs = list()
+        return self._tree.collides_with_tree(other_tree._tree)
 
-        pairs = self._tree.collides_with_tree(other_tree._tree)
+    def update_bbs(self):
+        """ Update this tree's AABB's. This will result
+        in a higher degree of overlap.
 
-        return pairs
-        
+        TODO: In order for this to work, face max/min must be updated
+        first. This means vertices need to be tracked. """
+        self._tree.update_bbs()
 
 class AABBNode (object):
     """ A node of an Axis-aligned bounding box tree. """
@@ -77,6 +80,7 @@ class AABBNode (object):
         
         """ Sort faces based on minimum point in maxi dimension """
         sorted_faces = self.quicksort(faces, maxi)
+        self.faces = sorted_faces
         split_index = len(sorted_faces)//2
         left_sorted_faces = sorted_faces[:split_index]
         right_sorted_faces = sorted_faces[split_index:]
@@ -151,3 +155,29 @@ class AABBNode (object):
         res.extend(self.quicksort(greater,dim))
         
         return res
+
+    def update_bbs(self):
+        """ Recursively update this bounding box and recurisvely call
+        on children. """
+
+        if self.is_leaf():
+            self.max_pt = self.leaf.max
+            self.min_pt = self.leaf.min
+            return
+            
+        sysmin = sys.float_info.min
+        sysmax = sys.float_info.max
+        self.min_pt = [sysmax, sysmax, sysmax]
+        self.max_pt = [sysmin, sysmin, sysmin]
+        
+        for face in self.faces:
+            self.min_pt[0] = min(self.min_pt[0],face.min[0])
+            self.min_pt[1] = min(self.min_pt[1],face.min[1])
+            self.min_pt[2] = min(self.min_pt[2],face.min[2])
+            self.max_pt[0] = max(self.max_pt[0],face.max[0])
+            self.max_pt[1] = max(self.max_pt[1],face.max[1])
+            self.max_pt[2] = max(self.max_pt[2],face.max[2])
+
+        self.left_node.update_bbs()
+        self.right_node.update_bbs()
+

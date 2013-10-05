@@ -136,6 +136,14 @@ class BlendSeg (bpy.types.Operator):
         seconds = time() - start
         print("Took %1.5f seconds" % (seconds))
 
+        print("DEBUG: refreshing aabb trees to see how fast...")
+        start = time()
+        sp_tree.update_bbs()
+        ap_tree.update_bbs()
+        cp_tree.update_bbs()
+        seconds = time() - start
+        print("Took %1.5f seconds" % (seconds))
+
         if (not sp.hide):
             print("Computing sagittal intersection...")
             start = time()

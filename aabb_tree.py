@@ -13,32 +13,14 @@ class AABBTree (object):
         """ Construct an AABB Tree for this mesh.
         Mesh must be of type object_intersection.CMesh
         """
-        sysmin = sys.float_info.min
-        sysmax = sys.float_info.max
-        
-        self.max = [sysmin, sysmin, sysmin]
-        self.min = [sysmax, sysmax, sysmax]
-
-        for v in mesh.getVerts().values():
-            if v[0] < self.min[0]:
-                self.min[0] = v[0]
-            elif v[0] > self.max[0]:
-                self.max[0] = v[0]
-            if v[1] < self.min[1]:
-                self.min[1] = v[1]
-            elif v[1] > self.max[1]:
-                self.max[1] = v[1]
-            if v[2] < self.min[2]:
-                self.min[2] = v[2]
-            elif v[2] > self.max[2]:
-                self.max[2] = v[2]
+                
         """ Construct the tree """
-        self._tree = AABBNode(list(mesh.faces.values()), self.max, self.min)
+        self._tree = AABBNode(list(mesh.faces.values()))
 
 class AABBNode (object):
     """ A node of an Axis-aligned bounding box tree. """
 
-    def __init__(self, faces, max_pt, min_pt):
+    def __init__(self, faces):
         """ Initialize this node.
 
         Pass a list of faces, and two points representing the AABB
@@ -50,51 +32,42 @@ class AABBNode (object):
 
         if len(faces) is 1:
             self.leaf = faces[0]
+            self.left_node = None
+            self.right_node = None
+            self.max_pt = faces[0].max
+            self.min_pt = faces[0].min
             return
+
+        """ First compute BB for this set of faces """
+        sysmin = sys.float_info.min
+        sysmax = sys.float_info.max
+        self.min_pt = [sysmax, sysmax, sysmax]
+        self.max_pt = [sysmin, sysmin, sysmin]
         
-        self.max_pt = max_pt
-        self.min_pt = min_pt
-        
+        for face in faces:
+            self.min_pt[0] = min(self.min_pt[0],face.min[0])
+            self.min_pt[1] = min(self.min_pt[1],face.min[1])
+            self.min_pt[2] = min(self.min_pt[2],face.min[2])
+            self.max_pt[0] = max(self.max_pt[0],face.max[0])
+            self.max_pt[1] = max(self.max_pt[1],face.max[1])
+            self.max_pt[2] = max(self.max_pt[2],face.max[2])
+
         maxd = 0
         maxi = -1
         for i in range(0,2):
-            d = max_pt[i] - min_pt[i]
+            d = self.max_pt[i] - self.min_pt[i]
             if d > maxd:
                 maxd = d
                 maxi = i
-
+        
         """ Sort faces based on minimum point in maxi dimension """
         sorted_faces = self.quicksort(faces, maxi)
         split_index = len(sorted_faces)//2
         left_sorted_faces = sorted_faces[:split_index]
         right_sorted_faces = sorted_faces[split_index:]
 
-        sysmin = sys.float_info.min
-        sysmax = sys.float_info.max
-        
-        left_max_pt = [sysmin, sysmin, sysmin]
-        left_min_pt = [sysmax, sysmax, sysmax]
-        right_max_pt = [sysmin, sysmin, sysmin]
-        right_min_pt = [sysmax, sysmax, sysmax]
-
-        for face in left_sorted_faces:
-            left_max_pt[0] = max(left_max_pt[0], face.max[0])
-            left_max_pt[1] = max(left_max_pt[1], face.max[1])
-            left_max_pt[2] = max(left_max_pt[2], face.max[2])
-            left_min_pt[0] = min(left_min_pt[0], face.min[0])
-            left_min_pt[1] = min(left_min_pt[1], face.min[1])
-            left_min_pt[2] = min(left_min_pt[2], face.min[2])
-
-        for face in right_sorted_faces:
-            right_max_pt[0] = max(right_max_pt[0], face.max[0])
-            right_max_pt[1] = max(right_max_pt[1], face.max[1])
-            right_max_pt[2] = max(right_max_pt[2], face.max[2])
-            right_min_pt[0] = min(right_min_pt[0], face.min[0])
-            right_min_pt[1] = min(right_min_pt[1], face.min[1])
-            right_min_pt[2] = min(right_min_pt[2], face.min[2])
-
-        self.left_node = AABBNode(left_sorted_faces, left_max_pt, left_min_pt)
-        self.right_node = AABBNode(right_sorted_faces, right_max_pt, right_min_pt)
+        self.left_node = AABBNode(left_sorted_faces)
+        self.right_node = AABBNode(right_sorted_faces)
 
     def quicksort(self, faces, dim):
         """ Quicksort algorithm applied to a list of faces.

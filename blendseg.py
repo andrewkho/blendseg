@@ -5,9 +5,14 @@ from time import time
 
 import bpy
 from bpy_extras import image_utils
+import imp
 
 import slice_plane
+imp.reload(slice_plane)
 import object_intersection
+imp.reload(object_intersection)
+import aabb_tree
+imp.reload(aabb_tree)
 
 class BlendSeg (bpy.types.Operator):
     """ Compute and render the intersections of a mesh.
@@ -116,6 +121,12 @@ class BlendSeg (bpy.types.Operator):
         ap_cmesh = object_intersection.CMesh(ap, False, False)
         cp_cmesh = object_intersection.CMesh(cp, False, False)
         mesh_cmesh = object_intersection.CMesh(mesh, False, False)
+        seconds = time() - start
+        print("Took %1.5f seconds" % (seconds))
+
+        print("Generating mesh aabb tree...")
+        start = time()
+        mesh_tree = aabb_tree.AABBTree(mesh_cmesh)
         seconds = time() - start
         print("Took %1.5f seconds" % (seconds))
 

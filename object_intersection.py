@@ -497,7 +497,7 @@ class CFace:
             of this face EDGES with the surface of the other face, ONLY!
         """
         #first, discard operation when the spatial limits are separate:
-        for i in range(0,2):
+        for i in range(0,3):
             if (self.min[i] > face.max[i] or self.max[i] < face.min[i]): 
                 return [] #no cross points
         #if the faces are suspected to have a cross point - check every edge:

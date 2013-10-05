@@ -17,6 +17,21 @@ class AABBTree (object):
         """ Construct the tree """
         self._tree = AABBNode(list(mesh.faces.values()))
 
+    def collides_with(self, other_face):
+        """ Search tree for collision """
+        pt_max = other_face.max
+        pt_min = other_face.min
+        return self._tree.collides_with(pt_max, pt_min)
+
+    def collides_with_tree(self, other_tree):
+        """ Return a list of pairs of faces whose aabb's collide """
+        pairs = list()
+
+        pairs = self._tree.collides_with(other_tree._tree)
+
+        return pairs
+        
+
 class AABBNode (object):
     """ A node of an Axis-aligned bounding box tree. """
 
@@ -54,7 +69,7 @@ class AABBNode (object):
 
         maxd = 0
         maxi = -1
-        for i in range(0,2):
+        for i in range(0,3):
             d = self.max_pt[i] - self.min_pt[i]
             if d > maxd:
                 maxd = d
@@ -68,6 +83,20 @@ class AABBNode (object):
 
         self.left_node = AABBNode(left_sorted_faces)
         self.right_node = AABBNode(right_sorted_faces)
+
+    def collides_with(self, pt_max, pt_min):
+        for i in range(0,3):
+            if (self.min_pt[i] > pt_max[i] or self.max_pt[i] < pt_min[i]): 
+                return False
+            
+        if (self.left_node == None and self.right_node == None):
+            return True
+        
+        return (self.left_node.collides_with(pt_max, pt_min) or
+                self.right_node.collides_with(pt_max, pt_min))
+
+    def collides_with_tree(self, other_tree):
+        pass
 
     def quicksort(self, faces, dim):
         """ Quicksort algorithm applied to a list of faces.

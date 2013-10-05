@@ -114,19 +114,25 @@ class BlendSeg (bpy.types.Operator):
             return
 
         # Generate CMesh objects for planes, mesh
-        
-        print("Generating collision-mesh objects")
-        start = time()
-        sp_cmesh = object_intersection.CMesh(sp, False, False)
-        ap_cmesh = object_intersection.CMesh(ap, False, False)
-        cp_cmesh = object_intersection.CMesh(cp, False, False)
-        mesh_cmesh = object_intersection.CMesh(mesh, False, False)
-        seconds = time() - start
-        print("Took %1.5f seconds" % (seconds))
+
+        try:
+            self.mesh_cmesh
+        except AttributeError:
+            print("Generating collision-mesh objects")
+            start = time()
+            self.sp_cmesh = object_intersection.CMesh(sp, False, False)
+            self.ap_cmesh = object_intersection.CMesh(ap, False, False)
+            self.cp_cmesh = object_intersection.CMesh(cp, False, False)
+            self.mesh_cmesh = object_intersection.CMesh(mesh, False, False)
+            seconds = time() - start
+            print("Took %1.5f seconds" % (seconds))
 
         print("Generating mesh aabb tree...")
         start = time()
-        mesh_tree = aabb_tree.AABBTree(mesh_cmesh)
+        sp_tree = aabb_tree.AABBTree(self.sp_cmesh)
+        ap_tree = aabb_tree.AABBTree(self.ap_cmesh)
+        cp_tree = aabb_tree.AABBTree(self.cp_cmesh)
+        mesh_tree = aabb_tree.AABBTree(self.mesh_cmesh)
         seconds = time() - start
         print("Took %1.5f seconds" % (seconds))
 
@@ -134,23 +140,29 @@ class BlendSeg (bpy.types.Operator):
             print("Computing sagittal intersection...")
             start = time()
             loop1 = self.compute_intersection(
-                bpy.context.scene, sp_cmesh, mesh_cmesh, self.sag_plane.loop_name)
+                bpy.context.scene, self.sp_cmesh, self.mesh_cmesh, sp_tree, mesh_tree,
+                self.sag_plane.orientation, sp.location[self.sag_plane.orientation],
+                self.sag_plane.loop_name)
             seconds = time() - start
             print("Took %1.5f seconds" % (seconds))
         if (not ap.hide):
             print("Computing axial intersection...")
             start = time()
             loop2 = self.compute_intersection(
-                bpy.context.scene, ap_cmesh, mesh_cmesh, self.axi_plane.loop_name)
+                bpy.context.scene, self.ap_cmesh, self.mesh_cmesh, ap_tree, mesh_tree,
+                self.axi_plane.orientation, ap.location[self.axi_plane.orientation],
+                self.axi_plane.loop_name)
             seconds = time() - start
             print("Took %1.5f seconds" % (seconds))
         if (not cp.hide):
             print("Computing coronal intersection...")
             start = time()
             loop3 = self.compute_intersection(
-                bpy.context.scene, cp_cmesh, mesh_cmesh, self.cor_plane.loop_name)
+                bpy.context.scene, self.cp_cmesh, self.mesh_cmesh, cp_tree, mesh_tree,
+                self.cor_plane.orientation, cp.location[self.cor_plane.orientation],
+                self.cor_plane.loop_name)
             seconds = time() - start
-            print("Took %1.5f seconds" % (seconds))
+            print("  Took %1.5f seconds" % (seconds))
             
         """ These need to be hidden/shown after the all computations """
         if (not sp.hide):
@@ -213,7 +225,8 @@ class BlendSeg (bpy.types.Operator):
         self.cor_plane.plane.hide = False
         self.mesh.hide = True
         
-    def compute_intersection (self, scene, plane, mesh, loop_name):
+    #def compute_intersection (self, scene, plane, mesh, dirn, divide, loop_name):
+    def compute_intersection (self, scene, plane, mesh, plane_tree, mesh_tree, dirn, divide, loop_name):
         """ Computes intersection of two CMesh's
         
         Returns an object representing the intersection contour.
@@ -223,7 +236,10 @@ class BlendSeg (bpy.types.Operator):
 
         # print("Computing crs points...")
         # start = time()
-        crs_pnts = object_intersection.intersect (plane, mesh)
+        # crs_pnts = object_intersection.intersect(plane, mesh)
+        crs_pnts = object_intersection.intersect_aabb(plane, mesh, plane_tree)
+        # crs_pnts = object_intersection.intersect_aabb(mesh, plane, mesh_tree)
+        # crs_pnts = object_intersection.intersect_split(plane, mesh, dirn, divide)
         # seconds = time() - start
         # print("Took %1.5f seconds" % (seconds))
 

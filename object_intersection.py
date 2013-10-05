@@ -823,6 +823,42 @@ def intersect(A,B):
         result.append(getLoop(cpoints))
     return result
 
+def intersect_split(plane, mesh, dirn, divide):
+    global _cpoints
+    _cpoints = [] 
+    for i in plane.faces.keys():
+        for j in mesh.faces.keys():
+            if (mesh.faces[j].max[dirn] > divide and
+                mesh.faces[j].min[dirn] < divide):
+                plane.Intersect(i, mesh.faces[j])
+    result = []        
+    cpoints = _cpoints[:]
+    while cpoints:
+        result.append(getLoop(cpoints))
+    return result
+    
+
+def intersect_aabb(A,B, aabb_A):
+    """ Compute the intersection of two mesh objects using precomputed
+    AABB for speedup.
+
+    Behaviour should be identical to above intersect function.
+    """
+    global _cpoints
+    _cpoints = []
+    """ Here use the AABB instead of brute force """
+    for i in A.faces.keys():
+        for j in B.faces.keys():
+            """ Check for AABB collision here """
+            if aabb_A.collides_with(B.faces[j]):
+                A.Intersect(i,B.faces[j])
+            
+    result = []
+    cpoints = _cpoints[:]
+    while cpoints:
+        result.append(getLoop(cpoints))
+    return result
+
 def create(loop, obj, allEdges=False, omit=None):
     """creates a new edge loop in the mesh of given object
         Arguments:

@@ -1,7 +1,9 @@
 import sys
+from operator import itemgetter
 
 import object_intersection
 from time import time
+
 import imp
 imp.reload(object_intersection)
 
@@ -57,37 +59,45 @@ class AABBNode (object):
             self.min_pt = faces[0].min
             return
         
-        """ First compute BB for this set of faces """
+        # """ First compute BB for this set of faces """
         sysmin = sys.float_info.min
         sysmax = sys.float_info.max
         self.min_pt = [sysmax, sysmax, sysmax]
         self.max_pt = [sysmin, sysmin, sysmin]
         
-        for face in faces:
-            self.min_pt[0] = min(self.min_pt[0],face.min[0])
-            self.min_pt[1] = min(self.min_pt[1],face.min[1])
-            self.min_pt[2] = min(self.min_pt[2],face.min[2])
-            self.max_pt[0] = max(self.max_pt[0],face.max[0])
-            self.max_pt[1] = max(self.max_pt[1],face.max[1])
-            self.max_pt[2] = max(self.max_pt[2],face.max[2])
-        
-        """ Now compute the largest direction, unless forced
-        direction is given, then we will just use that one """
+        """ It's actually faster to sort 3 times and use
+        as an ESTIMATE of the max/min than to iterate through
+        all faces. """
         maxd = 0
         maxi = -1
-        for i in range(0,3):
-            d = self.max_pt[i] - self.min_pt[i]
-            if d > maxd:
-                maxd = d
-                maxi = i
 
-        """ Sort faces based on minimum point in maxi dimension.
-        If forced_direction is on, then faces are assumed to be
-        already sorted. """
-        """ Sort according to minimum index """
-        sorted_faces = sorted(faces, key=lambda face: face.min[maxi])
+        fs = [None, None, None]
+        # faces.sort(key=lambda face:face.min[0])
+        fs[0] = sorted(faces, key=lambda face:face.min[0])
+        d = faces[-1].max[0] - faces[0].min[0]
+        if d > maxd:
+            maxd = d
+            maxi = 0
+        # faces.sort(key=lambda face:face.min[1])
+        fs[1] = sorted(faces, key=lambda face:face.min[1])
+        d = faces[-1].max[1] - faces[0].min[1]
+        if d > maxd:
+            maxd = d
+            maxi = 1
+        # faces.sort(key=lambda face:face.min[2])
+        fs[2] = sorted(faces, key=lambda face:face.min[2])
+        d = faces[-1].max[2] - faces[0].min[2]
+        if d > maxd:
+            maxd = d
+            maxi = 2
+
+        """ Sort according to minimum index. It is faster
+        to do in-place sort because faces might already be sorted
+        in this direction. """
+        # faces.sort(key=lambda face:face.min[maxi])
+        # sorted_faces = faces
+        sorted_faces = fs[maxi]
         
-        self.faces = sorted_faces
         split_index = len(sorted_faces)//2
         left_sorted_faces = sorted_faces[:split_index]
         right_sorted_faces = sorted_faces[split_index:]
@@ -96,13 +106,34 @@ class AABBNode (object):
         self.right_node = AABBNode(right_sorted_faces)
 
 
+        self.min_pt[0] = min(self.left_node.min_pt[0],
+                             self.right_node.min_pt[0])
+        self.min_pt[1] = min(self.left_node.min_pt[1],
+                             self.right_node.min_pt[1])
+        self.min_pt[2] = min(self.left_node.min_pt[2],
+                             self.right_node.min_pt[2])
+        self.max_pt[0] = max(self.left_node.max_pt[0],
+                             self.right_node.max_pt[0])
+        self.max_pt[1] = max(self.left_node.max_pt[1],
+                             self.right_node.max_pt[1])
+        self.max_pt[2] = max(self.left_node.max_pt[2],
+                             self.right_node.max_pt[2])
+        # for i in range(0,3):
+        #     self.min_pt[i] = min(self.left_node.min_pt[i],
+        #                       self.right_node.min_pt[i])
+        #     self.max_pt[i] = max(self.left_node.max_pt[i],
+        #                       self.right_node.max_pt[i])
+
     def is_leaf(self):
         return self.left_node is None and self.right_node is None
 
     def collides_with(self, pt_max, pt_min):
-        for i in range(0,3):
-            if (self.min_pt[i] > pt_max[i] or self.max_pt[i] < pt_min[i]): 
-                return False
+        if (self.min_pt[0] > pt_max[0] or self.max_pt[0] < pt_min[0]): 
+            return False
+        if (self.min_pt[1] > pt_max[1] or self.max_pt[1] < pt_min[1]): 
+            return False
+        if (self.min_pt[2] > pt_max[2] or self.max_pt[2] < pt_min[2]): 
+            return False
             
         if (self.left_node == None and self.right_node == None):
             return True
@@ -111,10 +142,15 @@ class AABBNode (object):
                 self.right_node.collides_with(pt_max, pt_min))
 
     def collides_with_tree(self, other_tree):
-        for i in range(0,3):
-            if (self.min_pt[i] > other_tree.max_pt[i] or
-                self.max_pt[i] < other_tree.min_pt[i]): 
-                return []
+        if (self.min_pt[0] > other_tree.max_pt[0] or
+            self.max_pt[0] < other_tree.min_pt[0]): 
+            return []
+        if (self.min_pt[1] > other_tree.max_pt[1] or
+            self.max_pt[1] < other_tree.min_pt[1]): 
+            return []
+        if (self.min_pt[2] > other_tree.max_pt[2] or
+            self.max_pt[2] < other_tree.min_pt[2]): 
+            return []
 
         if self.is_leaf():
             if other_tree.is_leaf():
@@ -143,9 +179,22 @@ class AABBNode (object):
         self.left_node.update_bbs()
         self.right_node.update_bbs()
 
-        for i in range(0,3):
-            self.min_pt[i] = min(self.left_node.min_pt[i],
-                                 self.right_node.min_pt[i])
-            self.max_pt[i] = max(self.left_node.max_pt[i],
-                                 self.right_node.max_pt[i])
+        self.min_pt[0] = min(self.left_node.min_pt[0],
+                             self.right_node.min_pt[0])
+        self.min_pt[1] = min(self.left_node.min_pt[1],
+                             self.right_node.min_pt[1])
+        self.min_pt[2] = min(self.left_node.min_pt[2],
+                             self.right_node.min_pt[2])
+        self.max_pt[0] = max(self.left_node.max_pt[0],
+                             self.right_node.max_pt[0])
+        self.max_pt[1] = max(self.left_node.max_pt[1],
+                             self.right_node.max_pt[1])
+        self.max_pt[2] = max(self.left_node.max_pt[2],
+                             self.right_node.max_pt[2])
+
+        # for i in range(0,3):
+        #     self.min_pt[i] = min(self.left_node.min_pt[i],
+        #                          self.right_node.min_pt[i])
+        #     self.max_pt[i] = max(self.left_node.max_pt[i],
+        #                          self.right_node.max_pt[i])
 

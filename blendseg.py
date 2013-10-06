@@ -16,7 +16,29 @@ imp.reload(aabb_tree)
 import aabb_directional_tree
 imp.reload(aabb_directional_tree)
 
-class BlendSeg (bpy.types.Operator):
+class BlendSegOperator (bpy.types.Operator):
+    bl_idname = "object.blendseg"
+    bl_label = "Blendseg Operator"
+    
+    def execute(self, context):
+        print("Executing...")
+        start = time()
+        bs = BlendSeg()
+        mesh = bpy.data.objects['Mesh']
+        
+        bs.update_all_intersections(mesh)
+        seconds = time() - start
+        print("Took %1.5f seconds." % seconds)
+        
+        return {'FINISHED'}
+
+    @classmethod
+    def poll(cls, context):
+        """ Only run if an object named 'Mesh' exists """
+        return 'Mesh' in bpy.data.objects
+        
+    
+class BlendSeg (object):
     """ Compute and render the intersections of a mesh.
     
     Intersection contours can be rendered on each plane in order to aid 
@@ -32,8 +54,6 @@ class BlendSeg (bpy.types.Operator):
     slices, and store them as textures. Three planes are created
     corresponding to the 3 principal directions. DICOM is not supported.
     """
-    bl_idname = "object.blendseg"
-    bl_label = "Blendseg Operator"
     
     letter = "A"
 
@@ -55,25 +75,19 @@ class BlendSeg (bpy.types.Operator):
     image_origin = tuple([0.,21.5,-51])
     image_spacing = tuple([0.468,0.468,0.5])
 
-    def execute(self, context):
-        print("\nBlendseg is executing!")
+    __instance = None
+    def __new__(cls):
 
-        mesh = bpy.data.objects['Mesh']
-        self.update_all_intersections(mesh)
-        return {'FINISHED'}
+        if BlendSeg.__instance is None:
+            print("Initializing BlendSeg")
+            BlendSeg.__instance = super(BlendSeg, cls).__new__(cls)
+            BlendSeg.__instance.load_img_stacks()
+            BlendSeg.__instance.create_planes()
+            
+        return BlendSeg.__instance
+    
+    def __init__(self): pass
 
-    @classmethod
-    def poll(cls, context):
-        """ Only run if an object named 'Mesh' exists """
-        return 'Mesh' in bpy.data.objects
-        
-    def __init__(self):
-        print("Initializing BlendSeg...")
-        start = time()
-        self.load_img_stacks()
-        self.create_planes()
-        end = time()
-        print("took " + str(end-start) + " seconds")
 
     def load_img_stacks(self):
         print ("Looking for " + BlendSeg.letter + " image sequence")
@@ -129,23 +143,26 @@ class BlendSeg (bpy.types.Operator):
             seconds = time() - start
             print("Took %1.5f seconds" % (seconds))
 
-        print("Generating mesh aabb tree...")
-        start = time()
-        sp_tree = aabb_tree.AABBTree(self.sp_cmesh)
-        ap_tree = aabb_tree.AABBTree(self.ap_cmesh)
-        cp_tree = aabb_tree.AABBTree(self.cp_cmesh)
-        mesh_tree = aabb_tree.AABBTree(self.mesh_cmesh)
-        seconds = time() - start
-        print("Took %1.5f seconds" % (seconds))
-        mesh_stree = mesh_tree
-        mesh_atree = mesh_tree
-        mesh_ctree = mesh_tree
+        try:
+            self.mesh_tree
+        except AttributeError:
+            print("Generating mesh aabb tree...")
+            start = time()
+            self.sp_tree = aabb_tree.AABBTree(self.sp_cmesh)
+            self.ap_tree = aabb_tree.AABBTree(self.ap_cmesh)
+            self.cp_tree = aabb_tree.AABBTree(self.cp_cmesh)
+            self.mesh_tree = aabb_tree.AABBTree(self.mesh_cmesh)
+            seconds = time() - start
+            print("Took %1.5f seconds" % (seconds))
+            self.mesh_stree = self.mesh_tree
+            self.mesh_atree = self.mesh_tree
+            self.mesh_ctree = self.mesh_tree
 
         # print("Generating Directional AABB Trees...")
         # start = time()
-        # sp_tree = aabb_tree.AABBTree(self.sp_cmesh)
-        # ap_tree = aabb_tree.AABBTree(self.ap_cmesh)
-        # cp_tree = aabb_tree.AABBTree(self.cp_cmesh)
+        # self.sp_tree = aabb_tree.AABBTree(self.sp_cmesh)
+        # self.ap_tree = aabb_tree.AABBTree(self.ap_cmesh)
+        # self.cp_tree = aabb_tree.AABBTree(self.cp_cmesh)
         # mesh_stree = aabb_directional_tree.AABBDirectionalTree(
         #     self.mesh_cmesh, slice_plane.Orientation('SAGITTAL').__index__())
         # mesh_atree = aabb_directional_tree.AABBDirectionalTree(
@@ -157,10 +174,10 @@ class BlendSeg (bpy.types.Operator):
 
         print("DEBUG: refreshing aabb trees to see how fast...")
         start = time()
-        sp_tree.update_bbs()
-        ap_tree.update_bbs()
-        cp_tree.update_bbs()
-        mesh_stree.update_bbs()
+        self.sp_tree.update_bbs()
+        self.ap_tree.update_bbs()
+        self.cp_tree.update_bbs()
+        self.mesh_stree.update_bbs()
         # mesh_atree.update_bbs()
         # mesh_ctree.update_bbs()
         seconds = time() - start
@@ -169,8 +186,10 @@ class BlendSeg (bpy.types.Operator):
         if (not sp.hide):
             print("Computing sagittal intersection...")
             start = time()
+            self.mesh_cmesh.reset_edges_found_lists()
             loop1 = self.compute_intersection(
-                bpy.context.scene, self.sp_cmesh, self.mesh_cmesh, sp_tree, mesh_stree,
+                bpy.context.scene, self.sp_cmesh, self.mesh_cmesh,
+                self.sp_tree, self.mesh_stree,
                 self.sag_plane.orientation, sp.location[self.sag_plane.orientation],
                 self.sag_plane.loop_name)
             seconds = time() - start
@@ -178,8 +197,10 @@ class BlendSeg (bpy.types.Operator):
         if (not ap.hide):
             print("Computing axial intersection...")
             start = time()
+            self.mesh_cmesh.reset_edges_found_lists()
             loop2 = self.compute_intersection(
-                bpy.context.scene, self.ap_cmesh, self.mesh_cmesh, ap_tree, mesh_atree,
+                bpy.context.scene, self.ap_cmesh, self.mesh_cmesh,
+                self.ap_tree, self.mesh_atree,
                 self.axi_plane.orientation, ap.location[self.axi_plane.orientation],
                 self.axi_plane.loop_name)
             seconds = time() - start
@@ -187,13 +208,14 @@ class BlendSeg (bpy.types.Operator):
         if (not cp.hide):
             print("Computing coronal intersection...")
             start = time()
+            self.mesh_cmesh.reset_edges_found_lists()
             loop3 = self.compute_intersection(
-                bpy.context.scene, self.cp_cmesh, self.mesh_cmesh, cp_tree, mesh_ctree,
+                bpy.context.scene, self.cp_cmesh, self.mesh_cmesh,
+                self.cp_tree, self.mesh_ctree,
                 self.cor_plane.orientation, cp.location[self.cor_plane.orientation],
                 self.cor_plane.loop_name)
             seconds = time() - start
             print("  Took %1.5f seconds" % (seconds))
-            
         """ These need to be hidden/shown after the all computations """
         if (not sp.hide):
             loop1.select = True
@@ -206,54 +228,6 @@ class BlendSeg (bpy.types.Operator):
         #bpy.ops.object.mode_set(mode='SCULPT')
         
         mesh.hide = True
-
-    def update_axi_intersections (self):
-        bpy.context.scene.objects.active = self.mesh
-        self.mesh.hide = False
-        self.axi_plane.update_intersection()
-        self.axi_plane.loop.select = True
-        self.sag_plane.loop.select = False
-        self.cor_plane.loop.select = False
-
-        bpy.context.scene.objects.active = self.mesh
-        if bpy.ops.object.mode_set.poll():
-            bpy.ops.object.mode_set(mode='SCULPT')
-        self.axi_plane.plane.hide = False
-        self.sag_plane.plane.hide = True
-        self.cor_plane.plane.hide = True
-        self.mesh.hide = True
-
-    def update_sag_intersections (self):
-        bpy.context.scene.objects.active = self.mesh
-        self.mesh.hide = False
-        self.sag_plane.update_intersection()
-        self.axi_plane.loop.select = False
-        self.sag_plane.loop.select = True
-        self.cor_plane.loop.select = False
-
-        bpy.context.scene.objects.active = self.mesh
-        if bpy.ops.object.mode_set.poll():
-            bpy.ops.object.mode_set(mode='SCULPT')
-        self.axi_plane.plane.hide = True
-        self.sag_plane.plane.hide = False
-        self.cor_plane.plane.hide = True
-        self.mesh.hide = True
-        
-    def update_cor_intersections (self):
-        bpy.context.scene.objects.active = self.mesh
-        self.mesh.hide = False
-        self.cor_plane.update_intersection()
-        self.axi_plane.loop.select = False
-        self.sag_plane.loop.select = False
-        self.cor_plane.loop.select = True
-
-        bpy.context.scene.objects.active = self.mesh
-        if bpy.ops.object.mode_set.poll():
-            bpy.ops.object.mode_set(mode='SCULPT')
-        self.axi_plane.plane.hide = True
-        self.sag_plane.plane.hide = True
-        self.cor_plane.plane.hide = False
-        self.mesh.hide = True
         
     def compute_intersection (self, scene, plane, mesh,
                               plane_tree, mesh_tree, dirn, divide, loop_name):
@@ -294,29 +268,29 @@ class BlendSeg (bpy.types.Operator):
 
         # print("Computing loop...")
         # start = time()
-        # add vertices to self plane
-        self.use_diagonals = False
+        # add vertices to self plane?
+        print("  Found " + str(len(crs_pnts)) + " loops")
         for l in crs_pnts:
-            object_intersection.create(l, loop, self.use_diagonals)
+            object_intersection.create(l, loop, allEdges=True)
                 
         # we must set the mode to edit before points can be selected
-        if crs_pnts: #any other method of unselecting did not work here: 
-            oldactive = scene.objects.active
-            scene.objects.active = bpy.data.objects[loop_name]
-            #bpy.ops.object.mode_set(mode='EDIT')#bpy.ops.object.editmode_toggle()
-            #bpy.ops.mesh.select_all(action='DESELECT')
-            bpy.ops.object.mode_set(mode='OBJECT')#bpy.ops.object.editmode_toggle()
-            #bpy.context.scene.objects.active = oldactive
+        # if crs_pnts: #any other method of unselecting did not work here: 
+        #     oldactive = scene.objects.active
+        #     scene.objects.active = bpy.data.objects[loop_name]
+        #     #bpy.ops.object.mode_set(mode='EDIT')#bpy.ops.object.editmode_toggle()
+        #     #bpy.ops.mesh.select_all(action='DESELECT')
+        #     bpy.ops.object.mode_set(mode='OBJECT')#bpy.ops.object.editmode_toggle()
+        #     #bpy.context.scene.objects.active = oldactive
 
         # seconds = time()-start
         # print("Took %1.5f seconds" % seconds)
         
         #select the newly created vertices:
-        found = 0
-        for v in loop.data.vertices: 
-             found += 1
-             v.select = True
-        print ("found " + str(found) + " vertices to select")
+        # found = 0
+        # for v in loop.data.vertices: 
+        #      found += 1
+        #      v.select = True
+        # print ("found " + str(found) + " vertices to select")
                 
         #enter edit mode (to let the user to evaluate the results):
         #bpy.ops.object.mode_set(mode='EDIT')#bpy.ops.object.editmode_toggle()
@@ -326,110 +300,9 @@ class BlendSeg (bpy.types.Operator):
 
         return loop
 
-# callback for updating plane images
-# We need to try-except each call so that if one is deleted,
-# we can continue to run
-"""        
-def update_plane_images (scene):
-    if (BlendSeg == None):
-        return
-    bs = BlendSeg.get_instance()
-    if (not bs):
-        return
-    try:
-        if scene.objects[bs.axi_plane.plane_name].is_updated:
-            #print ("AxiPlane updated")
-            if (bs.axi_plane.plane != scene.objects[bs.axi_plane.plane_name]):
-                bs.axi_plane.plane = scene.objects[bs.axi_plane.plane_name]
-            bs.axi_plane.enforce_location()
-            bs.axi_plane.update_image()
-    except (KeyError, AttributeError):
-        #print ("exception caught!")
-        pass
-    try:
-        if scene.objects[bs.sag_plane.plane_name].is_updated:
-            #print ("SagPlane updated")
-            if (bs.sag_plane.plane != scene.objects[bs.sag_plane.plane_name]):
-                bs.sag_plane.plane = scene.objects[bs.sag_plane.plane_name]
-            bs.sag_plane.enforce_location()
-            bs.sag_plane.update_image()
-    except (KeyError, AttributeError):
-        #print ("exception caught!")
-        pass
-    try:
-        if scene.objects[bs.cor_plane.plane_name].is_updated:
-            #print ("CorPlane updated")
-            if (bs.cor_plane.plane != scene.objects[bs.cor_plane.plane_name]):
-                bs.cor_plane.plane = scene.objects[bs.cor_plane.plane_name]
-            bs.cor_plane.enforce_location()
-            bs.cor_plane.update_image()
-    except (KeyError, AttributeError):
-        #print ("exception caught!")
-        pass
-"""  
-
-# Some convenience methods for changing visibility and modes
-def show_planes ():
-    bs = BlendSeg.get_instance()
-    bs.axi_plane.plane.hide = False
-    bs.sag_plane.plane.hide = False
-    bs.cor_plane.plane.hide = False
-    bs.mesh.hide = True
-    bs.axi_plane.loop.hide = False
-    bs.sag_plane.loop.hide = False
-    bs.cor_plane.loop.hide = False
-    bs.axi_plane.loop.select = True
-    bs.sag_plane.loop.select = True
-    bs.cor_plane.loop.select = True
-    
-def iso_axi ():
-    """Hide everything except the mesh and the axial plane.
-    """
-    if bpy.ops.object.mode_set.poll():
-        bpy.ops.object.mode_set(mode='OBJECT')
-    bs = BlendSeg.get_instance()
-    bs.axi_plane.plane.hide = False
-    bs.sag_plane.plane.hide = True
-    bs.cor_plane.plane.hide = True
-    bs.mesh.hide = False
-
-    bpy.context.scene.objects.active = bs.mesh
-    if bpy.ops.object.mode_set.poll():
-        bpy.ops.object.mode_set(mode='SCULPT')
-
-def iso_sag ():
-    """Hide everything except the mesh and the sagittal plane.
-    """
-    if bpy.ops.object.mode_set.poll():
-        bpy.ops.object.mode_set(mode='OBJECT')
-    bs = BlendSeg.get_instance()
-    bs.axi_plane.plane.hide = True
-    bs.sag_plane.plane.hide = False
-    bs.cor_plane.plane.hide = True
-    bs.mesh.hide = False
-
-    bpy.context.scene.objects.active = bs.mesh
-    if bpy.ops.object.mode_set.poll():
-        bpy.ops.object.mode_set(mode='SCULPT')
-
-def iso_cor ():
-    """Hide everything except the mesh and the coronal plane.
-    """
-    if bpy.ops.object.mode_set.poll():
-        bpy.ops.object.mode_set(mode='OBJECT')
-    bs = BlendSeg.get_instance()
-    bs.axi_plane.plane.hide = True
-    bs.sag_plane.plane.hide = True
-    bs.cor_plane.plane.hide = False
-    bs.mesh.hide = False
-
-    bpy.context.scene.objects.active = bs.mesh
-    if bpy.ops.object.mode_set.poll():
-        bpy.ops.object.mode_set(mode='SCULPT')
-
 def register():
     """Register Blendseg Operator with blender"""
-    bpy.utils.register_class(BlendSeg)
+    bpy.utils.register_class(BlendSegOperator)
 
 # For convenience, register ths when imported
 register()

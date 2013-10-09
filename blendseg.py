@@ -7,13 +7,13 @@ import bpy
 from bpy_extras import image_utils
 import imp
 
-import slice_plane
+from . import slice_plane
 imp.reload(slice_plane)
-import object_intersection
+from . import object_intersection
 imp.reload(object_intersection)
-import aabb_tree
+from . import aabb_tree
 imp.reload(aabb_tree)
-import aabb_directional_tree
+from . import aabb_directional_tree
 imp.reload(aabb_directional_tree)
 
 class BlendSegOperator (bpy.types.Operator):
@@ -29,13 +29,14 @@ class BlendSegOperator (bpy.types.Operator):
         bs.update_all_intersections(mesh)
         seconds = time() - start
         print("Took %1.5f seconds." % seconds)
-        
+
         return {'FINISHED'}
 
     @classmethod
     def poll(cls, context):
         """ Only run if an object named 'Mesh' exists """
         return 'Mesh' in bpy.data.objects
+
         
     
 class BlendSeg (object):
@@ -177,7 +178,7 @@ class BlendSeg (object):
         self.sp_tree.update_bbs()
         self.ap_tree.update_bbs()
         self.cp_tree.update_bbs()
-        self.mesh_stree.update_bbs()
+        self.mesh_tree.update_bbs()
         # mesh_atree.update_bbs()
         # mesh_ctree.update_bbs()
         seconds = time() - start
@@ -208,7 +209,7 @@ class BlendSeg (object):
         if (not cp.hide):
             print("Computing coronal intersection...")
             start = time()
-            self.mesh_cmesh.reset_edges_found_lists()
+            #self.mesh_cmesh.reset_edges_found_lists()
             loop3 = self.compute_intersection(
                 bpy.context.scene, self.cp_cmesh, self.mesh_cmesh,
                 self.cp_tree, self.mesh_ctree,

@@ -1,8 +1,6 @@
 import sys
-from operator import itemgetter
 
 import object_intersection
-from time import time
 
 import imp
 imp.reload(object_intersection)
@@ -17,7 +15,7 @@ class AABBTree (object):
         Mesh must be of type object_intersection.CMesh
         """
                 
-        """ Construct the tree """
+        # Construct the tree
         self._tree = AABBNode(list(mesh.faces.values()))
 
     def collides_with(self, other_face):
@@ -28,6 +26,8 @@ class AABBTree (object):
 
     def collides_with_tree(self, other_tree):
         """ Return a list of pairs of faces whose aabb's collide """
+        if type(other_tree) is not AABBTree:
+            raise TypeError("Can only collide with other AABBTree's")
         return self._tree.collides_with_tree(other_tree._tree)
 
     def update_bbs(self):
@@ -44,9 +44,6 @@ class AABBNode (object):
     def __init__(self, faces):
         """ Initialize this node.
 
-        Pass a list of faces, and two points representing the AABB
-        of all those faces.
-        
         Find longest axis of the AABB and split points along the halfway point
         into two new nodes, left and right.
         """
@@ -59,15 +56,15 @@ class AABBNode (object):
             self.min_pt = faces[0].min
             return
         
-        # """ First compute BB for this set of faces """
+        # First compute BB for this set of faces
         sysmin = sys.float_info.min
         sysmax = sys.float_info.max
         self.min_pt = [sysmax, sysmax, sysmax]
         self.max_pt = [sysmin, sysmin, sysmin]
         
-        """ It's actually faster to sort 3 times and use
-        as an ESTIMATE of the max/min than to iterate through
-        all faces. """
+        # It's actually faster to sort 3 times and use
+        # as an ESTIMATE of the max/min than to iterate through
+        # all faces.
         maxd = 0
         maxi = -1
 
@@ -91,9 +88,9 @@ class AABBNode (object):
             maxd = d
             maxi = 2
 
-        """ Sort according to minimum index. It is faster
-        to do in-place sort because faces might already be sorted
-        in this direction. """
+        # Sort according to minimum index. It is faster
+        # to do in-place sort because faces might already be sorted
+        # in this direction.
         # faces.sort(key=lambda face:face.min[maxi])
         # sorted_faces = faces
         sorted_faces = fs[maxi]

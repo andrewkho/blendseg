@@ -1,3 +1,0 @@
-[submodule "quad_edge_mesh"]
-	path = quad_edge_mesh
-	url = git@github.com:andrewkho/quad_edge_mesh.git

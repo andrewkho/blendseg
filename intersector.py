@@ -43,10 +43,10 @@ class Intersector (object):
     def _create_intersection_contours(self, ix_points):
         """ Return a list of intersection contours.
         Each contour is an ordered list of IntersectionPoints.
-        """
-        if len(ix_points) is 0:
-            return []
 
+        Closed contours will have the same start and end points.
+        Open contours are also possible.
+        """
         contours = []
         while len(ix_points) != 0:
             contour = self._get_one_contour(ix_points)

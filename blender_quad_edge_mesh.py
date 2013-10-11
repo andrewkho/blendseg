@@ -23,7 +23,8 @@ class BlenderQEMeshBuilder(object):
             bqem.add_vertex(bqev)
             vidx_counter = vidx_counter + 1
 
-
+        # class variables for keeping current index number.
+        # This really feels like a hack...
         cls.eidx_counter = 0
         cls.fidx_counter = 0
 
@@ -38,7 +39,7 @@ class BlenderQEMeshBuilder(object):
                                                           face.vertices[2],
                                                           face.vertices[3]])
                 bqem.add_face(qef)
-                
+
         return bqem
 
     @classmethod
@@ -97,7 +98,7 @@ class BlenderQEMeshBuilder(object):
                 else:
                     qee.tr_edge = qef.edges[face_eidx-1]
         if len(qef.edges) is not len(qef.verts):
-            raise ValueError("Uh oh")
+            raise ValueError("This seems strange...")
 
         return qef
 
@@ -121,7 +122,6 @@ class BlenderQEMesh(QEMesh):
     def update_vertex_positions(self):
         #if self.is_updated():
         self.get_blender_object().data.update()
-        # print("i have %d verts" % len(self._vertices))
         for vert in self._vertices:
             vert.update_pos()
         
@@ -139,9 +139,9 @@ class BlenderQEVertex(QEVertex):
         Does not check if mesh has been updated. Will multiply by matrix_world.
         """
         bl_pos = self.mesh.get_blender_object().data.vertices[self.blender_vindex]
-        self.blender_pos = bl_pos
         
         bl_world_pos = self.mesh.get_matrix_world() * bl_pos.co
+        self.blender_pos = bl_world_pos
         self.pos[0] = bl_world_pos[0]
         self.pos[1] = bl_world_pos[1]
         self.pos[2] = bl_world_pos[2]

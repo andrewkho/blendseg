@@ -158,6 +158,22 @@ class BlendSeg (object):
             self.ap_tree = AABBTree(self.ap_qem)
             self.cp_tree = AABBTree(self.cp_qem)
             self.mesh_tree = AABBTree(self.mesh_qem)
+
+            # First time initialization
+            self.sp_qem.update_vertex_positions()
+            self.sp_qem.update_bounding_boxes()
+            self.ap_qem.update_vertex_positions()
+            self.ap_qem.update_bounding_boxes()
+            self.cp_qem.update_vertex_positions()
+            self.cp_qem.update_bounding_boxes()
+            self.mesh_qem.update_vertex_positions()
+            self.mesh_qem.update_bounding_boxes()
+
+            self.sp_tree.update_bbs()
+            self.ap_tree.update_bbs()
+            self.cp_tree.update_bbs()
+            self.mesh_tree.update_bbs()
+            
             seconds = time() - start
             print("Took %1.5f seconds" % seconds)
             
@@ -202,28 +218,35 @@ class BlendSeg (object):
         # seconds = time() - start
         # print("Took %1.5f seconds" % (seconds))
 
-        print("DEBUG: refreshing aabb trees to see how fast...")
+        print("  Refreshing vertex positions")
         start = time()
-        print("  sagittal")
         self.sp_qem.update_vertex_positions()
-        self.sp_qem.update_bounding_boxes()
-        self.sp_tree.update_bbs()
-        print("  axial")
         self.ap_qem.update_vertex_positions()
-        self.ap_qem.update_bounding_boxes()
-        self.ap_tree.update_bbs()
-        print("  coronal")
         self.cp_qem.update_vertex_positions()
-        self.cp_qem.update_bounding_boxes()
-        self.cp_tree.update_bbs()
-        print("  mesh")
-        self.mesh_qem.update_vertex_positions()
-        self.mesh_qem.update_bounding_boxes()
-        self.mesh_tree.update_bbs()
-        # mesh_atree.update_bbs()
-        # mesh_ctree.update_bbs()
+        if mesh.is_updated:
+            self.mesh_qem.update_vertex_positions()
         seconds = time() - start
-        print("Took %1.5f seconds" % (seconds))
+        print("  Took %1.5f seconds" % (seconds))
+
+        print("  Refreshing bounding box positions")
+        start = time()
+        self.sp_qem.update_bounding_boxes()
+        self.ap_qem.update_bounding_boxes()
+        self.cp_qem.update_bounding_boxes()
+        if mesh.is_updated:
+            self.mesh_qem.update_bounding_boxes()
+        seconds = time() - start
+        print("  Took %1.5f seconds" % (seconds))
+        
+        print("  DEBUG: refreshing aabb trees to see how fast...")
+        start = time()
+        self.sp_tree.update_bbs()
+        self.ap_tree.update_bbs()
+        self.cp_tree.update_bbs()
+        if mesh.is_updated:
+            self.mesh_tree.update_bbs()
+        seconds = time() - start
+        print("  Took %1.5f seconds" % (seconds))
 
         if (not sp.hide):
             print("Computing sagittal intersection...")
@@ -267,12 +290,12 @@ class BlendSeg (object):
                                                   self.cor_plane.loop_name)
             seconds = time() - start
             print("  Took %1.5f seconds" % (seconds))
-        """ These need to be hidden/shown after the all computations """
-        if (not sp.hide):
+        # These need to be hidden/shown after the all computations
+        if (not sp.hide and loop1):
             loop1.select = True
-        if (not ap.hide):
+        if (not ap.hide and loop2):
             loop2.select = True
-        if (not cp.hide):
+        if (not cp.hide and loop3):
             loop3.select = True
 
         bpy.data.scenes[0].update()
@@ -307,6 +330,9 @@ class BlendSeg (object):
         loop_name - name of the new blender object
         contour - A list of IntersectionPoints representing the contour
         """
+        if len(contours) == 0:
+            return None
+        
         # Create a new object to hold the contours
         if (bpy.ops.object.mode_set.poll()):
             bpy.ops.object.mode_set(mode='OBJECT')

@@ -109,6 +109,7 @@ class BlenderQEMesh(QEMesh):
     def __init__(self, blender_object):
         super(BlenderQEMesh, self).__init__()
         self.blender_name = blender_object.name
+        self.is_rigid = True
 
     def get_blender_object(self):
         return bpy.data.objects[self.blender_name]
@@ -120,10 +121,15 @@ class BlenderQEMesh(QEMesh):
         return self.get_blender_object().is_updated
 
     def update_vertex_positions(self):
+        # if self.is_rigid:
         #if self.is_updated():
-        self.get_blender_object().data.update()
-        for vert in self._vertices:
-            vert.update_pos()
+            self.get_blender_object().data.update()
+            for vert in self._vertices:
+                vert.update_pos()
+        # else:
+        #     self.get_blender_object().data.update()
+        #     for vert in self._vertices:
+        #         vert.update_pos_no_matrix()
         
 
 class BlenderQEVertex(QEVertex):
@@ -134,6 +140,22 @@ class BlenderQEVertex(QEVertex):
         self.blender_vindex = blender_vert_index
         self.blender_pos = None
 
+    def get_pos(self):
+        bl_pos = self.mesh.get_blender_object().data.vertices[self.blender_vindex]
+        
+        bl_world_pos = self.mesh.get_matrix_world() * bl_pos.co
+
+        return bl_world_pos
+        
+
+    def update_pos_no_matrix(self):
+        bl_pos = self.mesh.get_blender_object().data.vertices[self.blender_vindex]
+        
+        self.blender_pos = bl_pos.co
+        self.pos[0] = bl_pos.co[0]
+        self.pos[1] = bl_pos.co[1]
+        self.pos[2] = bl_pos.co[2]
+        
     def update_pos(self):
         """ Update the position of this Blender vertex.
         Does not check if mesh has been updated. Will multiply by matrix_world.

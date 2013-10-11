@@ -1,4 +1,5 @@
 from copy import deepcopy
+from time import time
 
 # mathutils is a blender package... This should maybe be moved
 from mathutils.geometry import intersect_ray_tri
@@ -31,18 +32,29 @@ class Intersector (object):
         if not isinstance(tree2, AABBTree):
             raise TypeError("tree2 must be of type AABBTree!")
 
+        print("    AABB Tree collision")
+        start = time()
         pairs = tree1.collides_with_tree(tree2)
+        seconds = time() - start
+        print("    Took %1.5f seconds" % seconds)
 
         print("Searching %d pairs" % len(pairs))
 
+        print("    Deep search for intersections")
+        start = time()
         ix_points = []
         for pair in pairs:
             new_ixpoints = self._intersect_faces(pair[0], pair[1])
             ix_points.extend(new_ixpoints)
+        seconds = time() - start
+        print("    Took %1.5f seconds" % seconds)
 
         print("found %d ixpoints" % len(self._saved_results))
-
+        #print("    Constructing contour")
+        start = time()
         ix_contours = self._create_intersection_contours(ix_points)
+        seconds = time() - start
+        #print("    Took %1.5f seconds" % seconds)
 
         return ix_contours
 

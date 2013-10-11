@@ -1,5 +1,6 @@
 import os
 import glob
+import gc
 
 from time import time
 
@@ -144,6 +145,7 @@ class BlendSeg (object):
             self.ap_qem = BlenderQEMeshBuilder.construct_from_blender_object(ap)
             self.cp_qem = BlenderQEMeshBuilder.construct_from_blender_object(cp)
             self.mesh_qem = BlenderQEMeshBuilder.construct_from_blender_object(mesh)
+            self.mesh_qem.is_rigid = False
             seconds = time() - start
             print("Took %1.5f seconds" % seconds)
 
@@ -160,19 +162,19 @@ class BlendSeg (object):
             self.mesh_tree = AABBTree(self.mesh_qem)
 
             # First time initialization
-            self.sp_qem.update_vertex_positions()
-            self.sp_qem.update_bounding_boxes()
-            self.ap_qem.update_vertex_positions()
-            self.ap_qem.update_bounding_boxes()
-            self.cp_qem.update_vertex_positions()
-            self.cp_qem.update_bounding_boxes()
-            self.mesh_qem.update_vertex_positions()
-            self.mesh_qem.update_bounding_boxes()
+            # #self.sp_qem.update_vertex_positions()
+            # self.sp_qem.update_bounding_boxes()
+            # #self.ap_qem.update_vertex_positions()
+            # self.ap_qem.update_bounding_boxes()
+            # #self.cp_qem.update_vertex_positions()
+            # self.cp_qem.update_bounding_boxes()
+            # #self.mesh_qem.update_vertex_positions()
+            # self.mesh_qem.update_bounding_boxes()
 
-            self.sp_tree.update_bbs()
-            self.ap_tree.update_bbs()
-            self.cp_tree.update_bbs()
-            self.mesh_tree.update_bbs()
+            # self.sp_tree.update_bbs()
+            # self.ap_tree.update_bbs()
+            # self.cp_tree.update_bbs()
+            # self.mesh_tree.update_bbs()
             
             seconds = time() - start
             print("Took %1.5f seconds" % seconds)
@@ -223,8 +225,8 @@ class BlendSeg (object):
         self.sp_qem.update_vertex_positions()
         self.ap_qem.update_vertex_positions()
         self.cp_qem.update_vertex_positions()
-        if mesh.is_updated:
-            self.mesh_qem.update_vertex_positions()
+        # if mesh.is_updated:
+        self.mesh_qem.update_vertex_positions()
         seconds = time() - start
         print("  Took %1.5f seconds" % (seconds))
 
@@ -233,8 +235,8 @@ class BlendSeg (object):
         self.sp_qem.update_bounding_boxes()
         self.ap_qem.update_bounding_boxes()
         self.cp_qem.update_bounding_boxes()
-        if mesh.is_updated:
-            self.mesh_qem.update_bounding_boxes()
+        # if mesh.is_updated:
+        self.mesh_qem.update_bounding_boxes()
         seconds = time() - start
         print("  Took %1.5f seconds" % (seconds))
         
@@ -243,11 +245,12 @@ class BlendSeg (object):
         self.sp_tree.update_bbs()
         self.ap_tree.update_bbs()
         self.cp_tree.update_bbs()
-        if mesh.is_updated:
-            self.mesh_tree.update_bbs()
+        # if mesh.is_updated:
+        self.mesh_tree.update_bbs()
         seconds = time() - start
         print("  Took %1.5f seconds" % (seconds))
 
+        gc.disable()
         if (not sp.hide):
             print("Computing sagittal intersection...")
             start = time()
@@ -289,7 +292,10 @@ class BlendSeg (object):
                                                   self.cp_tree, self.mesh_tree,
                                                   self.cor_plane.loop_name)
             seconds = time() - start
-            print("  Took %1.5f seconds" % (seconds))
+            print("Took %1.5f seconds" % (seconds))
+
+        gc.enable()
+        
         # These need to be hidden/shown after the all computations
         if (not sp.hide and loop1):
             loop1.select = True
@@ -317,11 +323,20 @@ class BlendSeg (object):
         else:
             scene.objects.unlink(loop)
             bpy.data.objects.remove(loop)
-            
+
+        #print("  Searching for ix_points")
+        start = time()
         ixer = Intersector()
         ix_contours = ixer.compute_intersection_contour(plane, mesh, plane_tree, mesh_tree)
+        seconds = time() - start
+        #print("  Took %1.5f seconds" % seconds)
+        
+        #print("  Creating blender contour")
+        start = time()
         loop = self._create_blender_contour(ix_contours, loop_name)
-
+        seconds = time() - start
+        #print("  Took %1.5f seconds" % seconds)
+        
         return loop
 
     def _create_blender_contour (self, contours, loop_name):

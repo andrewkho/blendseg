@@ -93,23 +93,30 @@ class BlendSeg (object):
         return BlendSeg.__instance
     
     def __init__(self):
-        bpy.app.handlers.scene_update_post.append(self.scene_update_callback)
+        # bpy.app.handlers.scene_update_pre.append(self.scene_update_callback)
+        # bpy.app.handlers.scene_update_post.append(self.scene_update_callback)
 
     def scene_update_callback(self, scene):
         """ Hook this into scene_update_post.
         Let's use it to deterine if we need to update meshes.
         I wonder if it can be made interactive?
         """
-        pass
-        # try:
-        #     mesh = scene.objects[self.mesh_qem.blender_name]
-        # except KeyError:
-        #     print(self.mesh_qem.blender_name + " wasn't found!")
+        try:
+            mesh = scene.objects[self.mesh_qem.blender_name]
+        except KeyError:
+            print(self.mesh_qem.blender_name + " wasn't found!")
+            return
         
-        # if mesh.is_updated_data:
-        #     print ("Mesh was updated!!")
-        #     self.mesh_qem.is_updated = True
+        if mesh.is_updated_data:
+            print("Mesh data was updated!!")
+            #self.mesh_qem.is_updated = True
+        if mesh.is_updated:
+            print("Mesh was updated!!")
 
+        if mesh.data.is_updated_data:
+            print("Mesh Data data was updated!!")
+        if mesh.data.is_updated:
+            print("Mesh Data was updated!!")
 
     def load_img_stacks(self):
         print ("Looking for " + BlendSeg.letter + " image sequence")
@@ -195,47 +202,6 @@ class BlendSeg (object):
             seconds = time() - start
             print("Took %1.5f seconds" % seconds)
             
-        # try:
-        #     self.mesh_cmesh
-        # except AttributeError:
-        #     print("Generating collision-mesh objects")
-        #     start = time()
-        #     self.sp_cmesh = object_intersection.CMesh(sp, False, False)
-        #     self.ap_cmesh = object_intersection.CMesh(ap, False, False)
-        #     self.cp_cmesh = object_intersection.CMesh(cp, False, False)
-        #     self.mesh_cmesh = object_intersection.CMesh(mesh, False, False)
-        #     seconds = time() - start
-        #     print("Took %1.5f seconds" % (seconds))
-
-        # try:
-        #     self.mesh_tree
-        # except AttributeError:
-        #     print("Generating mesh aabb tree...")
-        #     start = time()
-        #     self.sp_tree = aabb_tree.AABBTree(self.sp_cmesh)
-        #     self.ap_tree = aabb_tree.AABBTree(self.ap_cmesh)
-        #     self.cp_tree = aabb_tree.AABBTree(self.cp_cmesh)
-        #     self.mesh_tree = aabb_tree.AABBTree(self.mesh_cmesh)
-        #     seconds = time() - start
-        #     print("Took %1.5f seconds" % (seconds))
-        #     self.mesh_stree = self.mesh_tree
-        #     self.mesh_atree = self.mesh_tree
-        #     self.mesh_ctree = self.mesh_tree
-
-        # print("Generating Directional AABB Trees...")
-        # start = time()
-        # self.sp_tree = aabb_tree.AABBTree(self.sp_cmesh)
-        # self.ap_tree = aabb_tree.AABBTree(self.ap_cmesh)
-        # self.cp_tree = aabb_tree.AABBTree(self.cp_cmesh)
-        # mesh_stree = aabb_directional_tree.AABBDirectionalTree(
-        #     self.mesh_cmesh, slice_plane.Orientation('SAGITTAL').__index__())
-        # mesh_atree = aabb_directional_tree.AABBDirectionalTree(
-        #     self.mesh_cmesh, slice_plane.Orientation('AXIAL').__index__())
-        # mesh_ctree = aabb_directional_tree.AABBDirectionalTree(
-        #     self.mesh_cmesh, slice_plane.Orientation('CORONAL').__index__())
-        # seconds = time() - start
-        # print("Took %1.5f seconds" % (seconds))
-
         print("  Refreshing vertex positions")
         start = time()
         self.sp_qem.update_vertex_positions()
@@ -272,13 +238,8 @@ class BlendSeg (object):
         if (not sp.hide):
             print("Computing sagittal intersection...")
             start = time()
-            #self.mesh_cmesh.reset_edges_found_lists()
-            # loop1 = self.compute_intersection(
-            #     bpy.context.scene, self.sp_cmesh, self.mesh_cmesh,
-            #     self.sp_tree, self.mesh_stree,
-            #     self.sag_plane.orientation, sp.location[self.sag_plane.orientation],
-            #     self.sag_plane.loop_name)
-            loop1 = self.compute_intersection_qem(bpy.context.scene, self.sp_qem, self.mesh_qem,
+            loop1 = self.compute_intersection_qem(bpy.context.scene,
+                                                  self.sp_qem, self.mesh_qem,
                                                   self.sp_tree, self.mesh_tree,
                                                   self.sag_plane.loop_name)
             seconds = time() - start
@@ -286,13 +247,8 @@ class BlendSeg (object):
         if (not ap.hide):
             print("Computing axial intersection...")
             start = time()
-            #self.mesh_cmesh.reset_edges_found_lists()
-            # loop2 = self.compute_intersection(
-            #     bpy.context.scene, self.ap_cmesh, self.mesh_cmesh,
-            #     self.ap_tree, self.mesh_atree,
-            #     self.axi_plane.orientation, ap.location[self.axi_plane.orientation],
-            #     self.axi_plane.loop_name)
-            loop2 = self.compute_intersection_qem(bpy.context.scene, self.ap_qem, self.mesh_qem,
+            loop2 = self.compute_intersection_qem(bpy.context.scene,
+                                                  self.ap_qem, self.mesh_qem,
                                                   self.ap_tree, self.mesh_tree,
                                                   self.axi_plane.loop_name)
             seconds = time() - start
@@ -300,13 +256,8 @@ class BlendSeg (object):
         if (not cp.hide):
             print("Computing coronal intersection...")
             start = time()
-            #self.mesh_cmesh.reset_edges_found_lists()
-            # loop3 = self.compute_intersection(
-            #     bpy.context.scene, self.cp_cmesh, self.mesh_cmesh,
-            #     self.cp_tree, self.mesh_ctree,
-            #     self.cor_plane.orientation, cp.location[self.cor_plane.orientation],
-            #     self.cor_plane.loop_name)
-            loop3 = self.compute_intersection_qem(bpy.context.scene, self.cp_qem, self.mesh_qem,
+            loop3 = self.compute_intersection_qem(bpy.context.scene,
+                                                  self.cp_qem, self.mesh_qem,
                                                   self.cp_tree, self.mesh_tree,
                                                   self.cor_plane.loop_name)
             seconds = time() - start
@@ -329,9 +280,12 @@ class BlendSeg (object):
         
         mesh.hide = True
 
-    def compute_intersection_qem (self, scene, plane, mesh, plane_tree, mesh_tree, loop_name):
-        """ Compute intersection of plane and mesh and return a contour representing
-        their intersection.
+    def compute_intersection_qem (self, scene,
+                                  plane, mesh,
+                                  plane_tree, mesh_tree,
+                                  loop_name):
+        """ Compute intersection of plane and mesh and return a
+        contour representing their intersection.
         """
         # Try to remove old loop before anything else
         try:
@@ -345,7 +299,8 @@ class BlendSeg (object):
         #print("  Searching for ix_points")
         start = time()
         ixer = Intersector()
-        ix_contours = ixer.compute_intersection_contour(plane, mesh, plane_tree, mesh_tree)
+        ix_contours = ixer.compute_intersection_contour(plane, mesh,
+                                                        plane_tree, mesh_tree)
         seconds = time() - start
         #print("  Took %1.5f seconds" % seconds)
         
@@ -406,77 +361,6 @@ class BlendSeg (object):
 
         loop.data.update()
         
-        return loop
-        
-    def compute_intersection (self, scene, plane, mesh,
-                              plane_tree, mesh_tree, dirn, divide, loop_name):
-        """ Computes intersection of two CMesh's
-        
-        Returns an object representing the intersection contour.
-        """
-        if (mesh == None or plane == None):
-            raise ValueError('mesh or plane is None!')
-
-        # print("Computing crs points...")
-        # start = time()
-        """ Original Brute force method """
-        # crs_pnts = object_intersection.intersect(plane, mesh)
-        """ Intersect two trees """ 
-        crs_pnts = object_intersection.intersect_aabb(plane, mesh, plane_tree, mesh_tree)
-        """ Brute force method with single division line """
-        # crs_pnts = object_intersection.intersect_split(plane, mesh, dirn, divide)
-        # seconds = time() - start
-        # print("Took %1.5f seconds" % (seconds))
-
-
-        """ attempt to find our old loop and delete if exists """
-        try:
-            loop = scene.objects[loop_name]
-        except KeyError:
-            print("Couldn't find old loop! Continuing")
-        else:
-            scene.objects.unlink(loop)
-            bpy.data.objects.remove(loop)
-
-        """ create a new loop object """
-        if (bpy.ops.object.mode_set.poll()):
-            bpy.ops.object.mode_set(mode='OBJECT')
-        bpy.ops.object.add(type='MESH')
-        loop = bpy.context.object
-        loop.name = loop_name
-
-        # print("Computing loop...")
-        # start = time()
-        # add vertices to self plane?
-        print("  Found " + str(len(crs_pnts)) + " loops")
-        for l in crs_pnts:
-            object_intersection.create(l, loop, allEdges=True)
-                
-        # we must set the mode to edit before points can be selected
-        # if crs_pnts: #any other method of unselecting did not work here: 
-        #     oldactive = scene.objects.active
-        #     scene.objects.active = bpy.data.objects[loop_name]
-        #     #bpy.ops.object.mode_set(mode='EDIT')#bpy.ops.object.editmode_toggle()
-        #     #bpy.ops.mesh.select_all(action='DESELECT')
-        #     bpy.ops.object.mode_set(mode='OBJECT')#bpy.ops.object.editmode_toggle()
-        #     #bpy.context.scene.objects.active = oldactive
-
-        # seconds = time()-start
-        # print("Took %1.5f seconds" % seconds)
-        
-        #select the newly created vertices:
-        # found = 0
-        # for v in loop.data.vertices: 
-        #      found += 1
-        #      v.select = True
-        # print ("found " + str(found) + " vertices to select")
-                
-        #enter edit mode (to let the user to evaluate the results):
-        #bpy.ops.object.mode_set(mode='EDIT')#bpy.ops.object.editmode_toggle()
-            
-        if not crs_pnts:
-            print ("No intersection found between this and the other selected object.")
-
         return loop
 
 def register():

@@ -95,6 +95,7 @@ class BlendSeg (object):
     def __init__(self):
         # bpy.app.handlers.scene_update_pre.append(self.scene_update_callback)
         # bpy.app.handlers.scene_update_post.append(self.scene_update_callback)
+        pass
 
     def scene_update_callback(self, scene):
         """ Hook this into scene_update_post.

@@ -89,10 +89,26 @@ class BlendSeg (object):
             BlendSeg.__instance = super(BlendSeg, cls).__new__(cls)
             BlendSeg.__instance.load_img_stacks()
             BlendSeg.__instance.create_planes()
-            
+
         return BlendSeg.__instance
     
-    def __init__(self): pass
+    def __init__(self):
+        bpy.app.handlers.scene_update_post.append(self.scene_update_callback)
+
+    def scene_update_callback(self, scene):
+        """ Hook this into scene_update_post.
+        Let's use it to deterine if we need to update meshes.
+        I wonder if it can be made interactive?
+        """
+        pass
+        # try:
+        #     mesh = scene.objects[self.mesh_qem.blender_name]
+        # except KeyError:
+        #     print(self.mesh_qem.blender_name + " wasn't found!")
+        
+        # if mesh.is_updated_data:
+        #     print ("Mesh was updated!!")
+        #     self.mesh_qem.is_updated = True
 
 
     def load_img_stacks(self):
@@ -162,19 +178,19 @@ class BlendSeg (object):
             self.mesh_tree = AABBTree(self.mesh_qem)
 
             # First time initialization
-            # #self.sp_qem.update_vertex_positions()
-            # self.sp_qem.update_bounding_boxes()
-            # #self.ap_qem.update_vertex_positions()
-            # self.ap_qem.update_bounding_boxes()
-            # #self.cp_qem.update_vertex_positions()
-            # self.cp_qem.update_bounding_boxes()
-            # #self.mesh_qem.update_vertex_positions()
-            # self.mesh_qem.update_bounding_boxes()
+            # self.sp_qem.update_vertex_positions()
+            self.sp_qem.update_bounding_boxes()
+            # self.ap_qem.update_vertex_positions()
+            self.ap_qem.update_bounding_boxes()
+            # self.cp_qem.update_vertex_positions()
+            self.cp_qem.update_bounding_boxes()
+            # self.mesh_qem.update_vertex_positions()
+            self.mesh_qem.update_bounding_boxes()
 
-            # self.sp_tree.update_bbs()
-            # self.ap_tree.update_bbs()
-            # self.cp_tree.update_bbs()
-            # self.mesh_tree.update_bbs()
+            self.sp_tree.update_bbs()
+            self.ap_tree.update_bbs()
+            self.cp_tree.update_bbs()
+            self.mesh_tree.update_bbs()
             
             seconds = time() - start
             print("Took %1.5f seconds" % seconds)
@@ -225,7 +241,7 @@ class BlendSeg (object):
         self.sp_qem.update_vertex_positions()
         self.ap_qem.update_vertex_positions()
         self.cp_qem.update_vertex_positions()
-        # if mesh.is_updated:
+        # if mesh.is_updated_data:
         self.mesh_qem.update_vertex_positions()
         seconds = time() - start
         print("  Took %1.5f seconds" % (seconds))
@@ -235,21 +251,23 @@ class BlendSeg (object):
         self.sp_qem.update_bounding_boxes()
         self.ap_qem.update_bounding_boxes()
         self.cp_qem.update_bounding_boxes()
-        # if mesh.is_updated:
+        #if mesh.is_updated_data:
         self.mesh_qem.update_bounding_boxes()
         seconds = time() - start
         print("  Took %1.5f seconds" % (seconds))
         
-        print("  DEBUG: refreshing aabb trees to see how fast...")
+        print("  Refreshing aabb trees to see how fast...")
         start = time()
         self.sp_tree.update_bbs()
         self.ap_tree.update_bbs()
         self.cp_tree.update_bbs()
-        # if mesh.is_updated:
+        #if self.mesh_qem.is_updated:
         self.mesh_tree.update_bbs()
         seconds = time() - start
         print("  Took %1.5f seconds" % (seconds))
 
+        self.mesh_qem.is_updated = False
+        
         gc.disable()
         if (not sp.hide):
             print("Computing sagittal intersection...")

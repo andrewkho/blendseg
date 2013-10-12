@@ -121,15 +121,12 @@ class BlenderQEMesh(QEMesh):
         return self.get_blender_object().is_updated
 
     def update_vertex_positions(self):
-        # if self.is_rigid:
-        #if self.is_updated():
-            self.get_blender_object().data.update()
+        if self.is_rigid:
             for vert in self._vertices:
                 vert.update_pos()
-        # else:
-        #     self.get_blender_object().data.update()
-        #     for vert in self._vertices:
-        #         vert.update_pos_no_matrix()
+        else:
+            for vert in self._vertices:
+                vert.update_pos_no_matrix()
         
 
 class BlenderQEVertex(QEVertex):
@@ -139,6 +136,8 @@ class BlenderQEVertex(QEVertex):
         super(BlenderQEVertex, self).__init__(parent_mesh, index)
         self.blender_vindex = blender_vert_index
         self.blender_pos = None
+        self.is_updated = True
+        self.EPSILON = 1e-8
 
     def get_pos(self):
         bl_pos = self.mesh.get_blender_object().data.vertices[self.blender_vindex]
@@ -150,28 +149,32 @@ class BlenderQEVertex(QEVertex):
 
     def update_pos_no_matrix(self):
         bl_pos = self.mesh.get_blender_object().data.vertices[self.blender_vindex]
-        
-        self.blender_pos = bl_pos.co
+
+        if (abs(self.pos[0] - bl_pos.co[0]) < self.EPSILON and
+            abs(self.pos[1] - bl_pos.co[1]) < self.EPSILON and
+            abs(self.pos[2] - bl_pos.co[2]) < self.EPSILON):
+            self.is_updated = False
+        else:
+            self.is_updated = True
+        #self.is_updated = True
         self.pos[0] = bl_pos.co[0]
         self.pos[1] = bl_pos.co[1]
         self.pos[2] = bl_pos.co[2]
+        
         
     def update_pos(self):
         """ Update the position of this Blender vertex.
         Does not check if mesh has been updated. Will multiply by matrix_world.
         """
         bl_pos = self.mesh.get_blender_object().data.vertices[self.blender_vindex]
-        
+
+        self.is_updated = True
+
         bl_world_pos = self.mesh.get_matrix_world() * bl_pos.co
-        self.blender_pos = bl_world_pos
         self.pos[0] = bl_world_pos[0]
         self.pos[1] = bl_world_pos[1]
         self.pos[2] = bl_world_pos[2]
         
         # print(self.mesh.blender_name + " pos: " + str(self.pos))
-
-    def get_blender_pos(self):
-        return self.blender_pos
-        
 
     

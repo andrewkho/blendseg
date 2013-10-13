@@ -1,8 +1,10 @@
+import sys
 import copy
 
 import bpy
 
 from multiprocessing import Pool
+from threading import Thread
 
 from .quad_edge_mesh.quad_edge_mesh import QEMesh, QEVertex, QEFace, QEEdge
 
@@ -104,6 +106,12 @@ class BlenderQEMeshBuilder(object):
 
         return qef
 
+def update_one_vertex_no_matrix(vert):
+    vert.update_pos_no_matrix()
+
+def update_vertex_list_no_matrix(verts, blobj):
+    for vert in verts:
+        vert.update_pos_no_matrix_blobj(blobj)
 
 class BlenderQEMesh(QEMesh):
     """ A QEMesh that also stores some Blender specific info.
@@ -123,6 +131,7 @@ class BlenderQEMesh(QEMesh):
         return self.get_blender_object().is_updated
 
     def update_vertex_positions(self):
+        self.blobj = self.get_blender_object().data.vertices
         if self.is_rigid:
             for vert in self._vertices:
                 vert.update_pos()
@@ -130,14 +139,35 @@ class BlenderQEMesh(QEMesh):
             for vert in self._vertices:
                 vert.update_pos_no_matrix()
 
-    def update_one_vertex_no_matrix(self, vert):
-        vert.update_pos_no_matrix()
-                
     def update_vertex_positions_mt(self):
-        num_procs = 4
+        num_procs = 16
         pool = Pool(processes = num_procs)
-        pool.map_async(self.update_one_vertex_no_matrix, self._vertices)
+        self.blobj = self.get_blender_object().data.vertices
         
+        pool.imap(update_one_vertex_no_matrix, self._vertices, len(self._vertices)//8)
+        pool.close()
+        pool.join()
+
+    def update_vertex_positions_mt2(self):
+        num_procs = 8
+        threads = []
+        num_verts = len(self._vertices)
+        slice_size = num_verts//num_procs
+        blobj = self.get_blender_object()
+        
+        for i in range(num_procs):
+            if (i+1) == num_procs:
+                threads.append(Thread(target=update_vertex_list_no_matrix,
+                                      args=(self._vertices[i*slice_size:], blobj.data.vertices)))
+            else:
+                threads.append(Thread(target=update_vertex_list_no_matrix,
+                                  args=(self._vertices[i*slice_size:(i+1)*slice_size],blobj.data.vertices)))
+
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+                                  
 
 class BlenderQEVertex(QEVertex):
     """ A QEVertex that links to Blender vertices.
@@ -158,7 +188,22 @@ class BlenderQEVertex(QEVertex):
         
 
     def update_pos_no_matrix(self):
-        bl_pos = self.mesh.get_blender_object().data.vertices[self.blender_vindex]
+        #bl_pos = self.mesh.get_blender_object().data.vertices[self.blender_vindex]
+        bl_pos = self.mesh.blobj[self.blender_vindex]
+
+        if (abs(self.pos[0] - bl_pos.co[0]) < self.EPSILON and
+            abs(self.pos[1] - bl_pos.co[1]) < self.EPSILON and
+            abs(self.pos[2] - bl_pos.co[2]) < self.EPSILON):
+            self.is_updated = False
+        else:
+            self.is_updated = True
+        #self.is_updated = True
+        self.pos[0] = bl_pos.co[0]
+        self.pos[1] = bl_pos.co[1]
+        self.pos[2] = bl_pos.co[2]
+        
+    def update_pos_no_matrix_blobj(self, blobj):
+        bl_pos = blobj[self.blender_vindex]
 
         if (abs(self.pos[0] - bl_pos.co[0]) < self.EPSILON and
             abs(self.pos[1] - bl_pos.co[1]) < self.EPSILON and

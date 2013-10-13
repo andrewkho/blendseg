@@ -210,8 +210,8 @@ class BlendSeg (object):
         self.ap_qem.update_vertex_positions()
         self.cp_qem.update_vertex_positions()
         # if mesh.is_updated_data:
-        #self.mesh_qem.update_vertex_positions()
-        self.mesh_qem.update_vertex_positions_mt()
+        self.mesh_qem.update_vertex_positions()
+        #self.mesh_qem.update_vertex_positions_mt()
         seconds = time() - start
         print("  Took %1.5f seconds" % (seconds))
 

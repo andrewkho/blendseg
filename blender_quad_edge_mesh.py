@@ -2,6 +2,8 @@ import copy
 
 import bpy
 
+from multiprocessing import Pool
+
 from .quad_edge_mesh.quad_edge_mesh import QEMesh, QEVertex, QEFace, QEEdge
 
 class BlenderQEMeshBuilder(object):
@@ -127,6 +129,14 @@ class BlenderQEMesh(QEMesh):
         else:
             for vert in self._vertices:
                 vert.update_pos_no_matrix()
+
+    def update_one_vertex_no_matrix(self, vert):
+        vert.update_pos_no_matrix()
+                
+    def update_vertex_positions_mt(self):
+        num_procs = 4
+        pool = Pool(processes = num_procs)
+        pool.map_async(self.update_one_vertex_no_matrix, self._vertices)
         
 
 class BlenderQEVertex(QEVertex):

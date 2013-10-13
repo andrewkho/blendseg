@@ -199,6 +199,7 @@ class BlendSeg (object):
             self.ap_tree.update_bbs()
             self.cp_tree.update_bbs()
             self.mesh_tree.update_bbs()
+            #self.mesh_tree.update_bbs_mt()
             
             seconds = time() - start
             print("Took %1.5f seconds" % seconds)
@@ -209,7 +210,8 @@ class BlendSeg (object):
         self.ap_qem.update_vertex_positions()
         self.cp_qem.update_vertex_positions()
         # if mesh.is_updated_data:
-        self.mesh_qem.update_vertex_positions()
+        #self.mesh_qem.update_vertex_positions()
+        self.mesh_qem.update_vertex_positions_mt()
         seconds = time() - start
         print("  Took %1.5f seconds" % (seconds))
 
@@ -230,6 +232,7 @@ class BlendSeg (object):
         self.cp_tree.update_bbs()
         #if self.mesh_qem.is_updated:
         self.mesh_tree.update_bbs()
+        #self.mesh_tree.update_bbs_mt()
         seconds = time() - start
         print("  Took %1.5f seconds" % (seconds))
 
@@ -300,8 +303,8 @@ class BlendSeg (object):
         #print("  Searching for ix_points")
         start = time()
         ixer = Intersector()
-        ix_contours = ixer.compute_intersection_contour(plane, mesh,
-                                                        plane_tree, mesh_tree)
+        ix_contours = ixer.compute_intersection_contour(mesh, plane,
+                                                        mesh_tree, plane_tree)
         seconds = time() - start
         #print("  Took %1.5f seconds" % seconds)
         

@@ -9,7 +9,9 @@ I'm still trying to figure out the Blender API. Currently I'm using Blender 2.63
 Currently this is NOT working correctly with Blender 2.68 Ubuntu. Fix is in the works.
 
 blender 2.62 (Ubuntu 12.04 repository version) -- Does not work
+
 Blender 2.63a -- works
+
 Blender 2.68 -- sort of works but position of contours needs to be fixed.
 
 The newest version has had the collision detection rewritten, and so no longer uses Witold's code.

@@ -21,7 +21,7 @@ It uses a Quad-edge mesh representation for quickly constructing contours, and a
 --------------------------
 This is all mostly based on some other projects. 
 
-Blendseg was originally based on Witold Jarowski's intersection code:
+Blendseg was originally based on Witold Jaworski's intersection code:
 http://airplanes3d.net/scripts-253_e.xml
 
 It was rewritten in Oct 2013 to use quad-edge mesh representation and AABB collision tree to speed up calculations.

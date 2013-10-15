@@ -6,10 +6,12 @@ from time import time
 
 import bpy
 from bpy_extras import image_utils
+
+from mathutils import Vector
 import imp
 
 from . import slice_plane
-imp.reload(slice_plane)
+# imp.reload(slice_plane)
 # from . import object_intersection
 # imp.reload(object_intersection)
 # from . import aabb_tree
@@ -27,6 +29,11 @@ class BlendSegOperator (bpy.types.Operator):
     
     def execute(self, context):
         print("Executing...")
+        # Save cursor position and move to origin
+        # This will fix the position of the contours in Blender v2.68
+        old_position = Vector(context.scene.cursor_location)
+        context.scene.cursor_location = Vector((0., 0., 0.))
+        
         start = time()
         bs = BlendSeg()
         mesh = bpy.data.objects['Mesh']
@@ -35,6 +42,8 @@ class BlendSegOperator (bpy.types.Operator):
         seconds = time() - start
         print("Took %1.5f seconds." % seconds)
 
+        # Return cursor position to where it was before calling execute
+        context.scene.cursor_location = old_position
         return {'FINISHED'}
 
     @classmethod
@@ -280,7 +289,7 @@ class BlendSeg (object):
         bpy.data.scenes[0].update()
 
         bpy.context.scene.objects.active = mesh
-        #bpy.ops.object.mode_set(mode='SCULPT')
+        bpy.ops.object.mode_set(mode='SCULPT')
         
         mesh.hide = True
 

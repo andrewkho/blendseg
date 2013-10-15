@@ -12,7 +12,7 @@ blender 2.62 (Ubuntu 12.04 repository version) -- Does not work
 
 Blender 2.63a -- works
 
-Blender 2.68 -- sort of works but position of contours needs to be fixed.
+Blender 2.68 -- works
 
 The newest version has had the collision detection rewritten, and so no longer uses Witold's code.
 

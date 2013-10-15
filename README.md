@@ -5,8 +5,7 @@ A few python files which are helping me to do 3d segmentation in Blender.
 
 Currently I am running this on a laptop with Core i5 Processor and a mesh with approximately 28000 faces. After initialization, it takes anywhere from 0.15-0.25s to complete the intersection and rendering operations. Optimization is on-going.
 
-I'm still trying to figure out the Blender API. Currently I'm using Blender 2.63 on 64-bit Ubuntu 12.04.3.
-Currently this is NOT working correctly with Blender 2.68 Ubuntu. Fix is in the works.
+I'm still trying to figure out the Blender API. Currently I'm using Blender 2.63 on 64-bit Ubuntu 12.04.3. This is now working with Blender 2.68.
 
 blender 2.62 (Ubuntu 12.04 repository version) -- Does not work
 

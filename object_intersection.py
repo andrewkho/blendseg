@@ -89,7 +89,7 @@ from time import time
 #        CPoint (it is the result - cross point, not vertex!)
 ####constants---------------------------------------------------------------
 EPSILON    = 0.00000001 #the tolerance of crossing faces (in world units)
-BOX_EPSILON = 0*EPSILON #the tolerance of comparing 'boxes', containing
+BOX_EPSILON = 1*EPSILON #the tolerance of comparing 'boxes', containing
                         #faces. Actually it seems to have no influence
                         #on the final result.
 PIXELS_PER_ICON = 16    #used in the formatting the message popup
@@ -99,7 +99,7 @@ DEBUG = 1 # Debug level. When nonzero, some diagnostics texts are placed at
         #   statements, Level = 5 - intermediate, while Level = 9 is the most 
         #   detailed
 ####globals-----------------------------------------------------------------
-_cpoints = []         #The result list of cross points (CPoint) found 
+#_cpoints = []         #The result list of cross points (CPoint) found 
                      #It is a reference to one global result list, 
                      #(it resolved some algorithm problems for printing the CPoint representation)    
 
@@ -182,6 +182,7 @@ class CMesh:
         self.__src.calc_tessface()  #force to update the n-gons tesseleation
         self.__neighbours = {}
         self.faces = {}
+        self.edges = []
         #Fill the __edges: dictionary 
         self.__edges = {}
         #we have to use edge_keys, because edges.items() can return edge objects instead of edge indices 
@@ -208,10 +209,13 @@ class CMesh:
         #(this line gives proper result in Object Mode, only!:)
         if use_selected or skip_hidden:
             #verification: do not stick onto use_selected, when nothing is selected!
-            if use_selected and not list(filter(lambda f: f.select, self.__src.tessfaces)):
+            if use_selected and not list(filter(
+                    lambda f: f.select, self.__src.tessfaces)):
                 use_selected = False
                 
-            selected = list(filter(lambda f: is_selected(f.select, f.hide, use_selected, skip_hidden), self.__src.tessfaces))
+            selected = list(filter(
+                    lambda f: is_selected(f.select, f.hide, use_selected, skip_hidden),
+                    self.__src.tessfaces))
         else:
             selected = self.__src.tessfaces #all
 
@@ -230,6 +234,14 @@ class CMesh:
                     else: #cut along (0, 2) edge
                         self.AddFace(f, (keys[0],keys[1],keys[2]))
                         self.AddFace(f, (keys[0],keys[2],keys[3]))
+
+    def reset_edges_found_lists(self):
+        for e in self.edges:
+            e.clear_results()
+            
+    def getVerts(self):
+        self.verts = self.__verts
+        return self.verts
                         
     def name(self):
         """Returns the name of wrapped Blender Mesh object
@@ -256,7 +268,7 @@ class CMesh:
         if key in self.__neighbours: return self.__neighbours[key]
         else: return None
         
-    def cpindex(self,cpoint):
+    def cpindex(self,cpoint, cpoints):
         """Returns index of given cross point (CPoint), or None if not registered
             Arguments:
                 cpoint:    a cross point (a CPoint instance) that is chcecked
@@ -265,8 +277,8 @@ class CMesh:
             For some cross points can return None, because they have been
             discarded during calculations.
         """
-        global _cpoints
-        if cpoint in _cpoints : return _cpoints.index(cpoint)
+        #global _cpoints
+        if cpoint in cpoints : return cpoints.index(cpoint)
         else: return None
         
     def GetEdge(self,key):
@@ -290,6 +302,7 @@ class CMesh:
 
         #add the edge to the edge dictionary:
         self.__edges[key] = edge
+        self.edges.append(edge)
 
         #assign it to two neighbour faces:
         fcount = 0 #count of the faces that share this edge
@@ -322,7 +335,7 @@ class CMesh:
         for k in [(key[0],key[1]),(key[1],key[2]),(key[2],key[0])]:
             self.__neighbours[k] = face
             
-    def Intersect(self, key, face):
+    def Intersect(self, key, face, cpoints):
         """Intersects the face from this mesh, identified by a key, with another
             Arguments:
                 key:    tuple (3 integers - vertex ordinals) that identifies 
@@ -331,12 +344,13 @@ class CMesh:
             
             Returns a list of 2 cross points, or empty list
         """
-        global _cpoints
+        # global _cpoints
         a,b = self.faces[key],face #a, b are just a shortcuts for the full names
         result = a.Intersect(b)    #store in the list the cross points from a...
         result.extend(b.Intersect(a)) #... together with b.
         if result:
-            if DEBUG > 8:    print("\n%s %s x %s %s (%d points):" % \
+            if DEBUG > 8:
+                print("\n%s %s x %s %s (%d points):" % \
                                         (a.mesh.name(), repr(a.key), \
                                          b.mesh.name(),repr(b.key),len(result)))
                                         
@@ -350,7 +364,7 @@ class CMesh:
             if len(result) == 4: #I have never seen such case 
                 if DEBUG:
                     print("4 cross points at crossing %s (%s) with %s (%s)" % \
-                          (self.name(), repr(key), face.mesh.name(), repr(face.key)))                                            
+                          (self.name(), repr(key), face.mesh.name(), repr(face.key)))
             elif len(result) == 3:    #3 cross points
                 #points 0 and 1 or 1 and 2 are from the same face:
                 #(because we first cross edges A with face B, and 
@@ -390,14 +404,14 @@ class CMesh:
                 #all the other points are placed at the end of cpoints[]
                 if len(result) == 3: 
                     cp = result[1]
-                    if cp not in _cpoints: _cpoints.insert(0,cp)
+                    if cp not in cpoints: cpoints.insert(0,cp)
                     #because result[1] is already on the list, it will be 
                     #discarded in the loop below, and only the items from
                     #the same face will be added at the end of cpoints...
 
                 #store the normal pair in the cpoints list:p
                 for cp in result:
-                    if cp not in _cpoints: _cpoints.append(cp)
+                    if cp not in cpoints: cpoints.append(cp)
                             
             if DEBUG > 8: #beware tab position: this will print also the discarded ones 
                 for cp in result: print(cp)
@@ -499,11 +513,12 @@ class CFace:
         #if the faces are suspected to have a cross point - check every edge:
         cpoints = []
         for k in self.__edges.keys():
-            if not self.__edges[k]: self.__edges[k] = self.mesh.GetEdge(k)
+            if not self.__edges[k]:
+                self.__edges[k] = self.mesh.GetEdge(k)
             result = self.__edges[k].Intersect(face)
             if result: 
                 cpoints.append(result)
-            
+
         return cpoints
 
     
@@ -546,6 +561,9 @@ class CEdge:
         self.ray = v2 - v1
         self.__results = {}
         self.boundary = False
+
+    def clear_results(self):
+        self.__results = {}
         
     @staticmethod
     def Normalize(key):
@@ -730,7 +748,7 @@ def show(text, kind='DEBUG'):
 def getTail(cpoints, cpoint):
     """Returns a sequence of cross points, that begins with the given point
         Arguments:
-            cpioints:    the list of the crosspoints that will be searched;
+            cpoints:    the list of the crosspoints that will be searched;
             cpoint:        the the begin of the sequence - MUST NOT be in cpoints,
                         but cpoint.next or cpoint.prev - should be
         
@@ -748,8 +766,10 @@ def getTail(cpoints, cpoint):
                 #that an empty list will be the result
     
     #check out, which direction we will take:
-    if cpoint.next in cpoints:         next = cpoint.next
-    elif cpoint.prev in cpoints:     next = cpoint.prev
+    if cpoint.next in cpoints:
+        next = cpoint.next
+    elif cpoint.prev in cpoints:
+        next = cpoint.prev
     
     #the cross points reference each other via next and prev without any
     #special order (because they were found randomly). It may happen that
@@ -808,13 +828,53 @@ def intersect(A,B):
         of cross points (CPoint) objects, that represent a single topological 
         loop. These loops may be opened or closed.
     """
-    global _cpoints
-    _cpoints = [] #reset this class collection...
+    # global _cpoints
+    cpoints = [] #reset this class collection...
     for i in A.faces.keys():
         for j in B.faces.keys():
             A.Intersect(i, B.faces[j])
     result = []        
-    cpoints = _cpoints[:]
+    # cpoints = _cpoints[:]
+    while cpoints:
+        result.append(getLoop(cpoints))
+    return result
+
+def intersect_split(plane, mesh, dirn, divide):
+    # global _cpoints
+    cpoints = [] 
+    for i in plane.faces.keys():
+        for j in mesh.faces.keys():
+            if (mesh.faces[j].max[dirn] > divide and
+                mesh.faces[j].min[dirn] < divide):
+                plane.Intersect(i, mesh.faces[j])
+    result = []        
+    # cpoints = _cpoints[:]
+    while cpoints:
+        result.append(getLoop(cpoints))
+    return result
+
+def intersect_aabb(A,B, aabb_A, aabb_B):
+    """ Compute the intersection of two mesh objects using precomputed
+    AABB for speedup.
+
+    Behaviour should be identical to above intersect function.
+    """
+    # global _cpoints
+    cpoints = []
+    """ Here use the AABB instead of brute force """
+    # for i in A.faces.keys():
+    #     for j in B.faces.keys():
+    #         """ Check for AABB collision here """
+    #         if aabb_A.collides_with(B.faces[j]):
+    #             A.Intersect(i,B.faces[j])
+    pairs = aabb_A.collides_with_tree(aabb_B)
+    # pairs = aabb_B.collides_with_tree(aabb_A)
+    
+    for pair in pairs:
+        A.Intersect(pair[0].key, pair[1], cpoints)
+            
+    result = []
+    # cpoints = _cpoints[:]
     while cpoints:
         result.append(getLoop(cpoints))
     return result
@@ -1032,7 +1092,7 @@ class IntersectMeshes(bpy.types.Operator):
 
         #if we are in the edit mode: switch into 'OBJECT' mode 
         #(execute() can be called continously from the Tool Properties pane):
-        global _cpoints
+#        global _cpoints
         if context.mode == 'EDIT_MESH':
             bpy.ops.object.mode_set(mode='OBJECT')#bpy.ops.object.editmode_toggle()
             
@@ -1055,16 +1115,16 @@ class IntersectMeshes(bpy.types.Operator):
         
         result = intersect(A,B) #main operation!
         
-        if DEBUG: 
-            seconds = time() - start
-            print("\nIn %1.5f seconds created: %d edges, found: %d raw cross points\n" % \
-                                        (seconds, len(A._CMesh__edges), len(_cpoints)))
-        if DEBUG > 8: #let's look at the results:
-            print("Raw result list:")
-            for p in _cpoints:
-                print(p)
+        # if DEBUG: 
+        #     seconds = time() - start
+        #     print("\nIn %1.5f seconds created: %d edges, found: %d raw cross points\n" % \
+        #                                 (seconds, len(A._CMesh__edges), len(cpoints)))
+        # if DEBUG > 8: #let's look at the results:
+        #     print("Raw result list:")
+        #     for p in cpoints:
+        #         print(p)
             
-            print("\nResult:")
+        #     print("\nResult:")
         
         mesh = a.data #this mesh will be extended by the calls to create() function ....
 

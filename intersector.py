@@ -49,7 +49,7 @@ class Intersector (object):
         seconds = time() - start
         print("    Took %1.5f seconds" % seconds)
         
-        print("found %d ixpoints" % len(self._saved_results))
+        # print("found %d ixpoints" % len(self._saved_results))
         print("    Constructing contour")
         start = time()
         ix_contours = self._create_intersection_contours(ix_points)

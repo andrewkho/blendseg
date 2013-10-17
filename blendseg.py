@@ -98,12 +98,19 @@ class BlendSeg (object):
             BlendSeg.__instance = super(BlendSeg, cls).__new__(cls)
             BlendSeg.__instance.load_img_stacks()
             BlendSeg.__instance.create_planes()
+            BlendSeg.__instance.mesh_qem = None
+            BlendSeg.__instance.mesh_tree = None
 
         return BlendSeg.__instance
     
     def __init__(self):
+        #bpy.app.handlers.scene_update_post.clear()
         # bpy.app.handlers.scene_update_pre.append(self.scene_update_callback)
         bpy.app.handlers.scene_update_post.append(self.scene_update_callback)
+
+        #if self.is_interactive:
+        if False:
+            bpy.app.handlers.scene_update_post.append(self.scene_update_contour_callback)
 
     def scene_update_callback(self, scene):
         """ Hook this into scene_update_post.
@@ -116,16 +123,21 @@ class BlendSeg (object):
             print(self.mesh_qem.blender_name + " wasn't found!")
             return
         
-        # if mesh.is_updated_data:
-        #     print("Mesh data was updated!!")
         if mesh.is_updated:
             print("Mesh was updated!!")
             self.mesh_qem.is_updated = True
+            
+    def scene_update_contour_callback(self, scene):
+        """ Update the intersection contours in a callback.
+        If the mesh is small enough, it shouldn't be a big deal.
+        """
+        try:
+            mesh = scene.objects[self.mesh_qem.blender_name]
+        except KeyError:
+            print(self.mesh_qem.blender_name + " wasn't found!")
+            return
 
-        # if mesh.data.is_updated_data:
-        #     print("Mesh Data data was updated!!")
-        # if mesh.data.is_updated:
-        #     print("Mesh Data was updated!!")
+        self.update_all_intersections(mesh)
 
     def load_img_stacks(self):
         print ("Looking for " + BlendSeg.letter + " image sequence")
@@ -155,6 +167,21 @@ class BlendSeg (object):
         self.cor_plane = slice_plane.SlicePlane (
             'CORONAL', self.image_origin,
             self.cor_imgs, BlendSeg.image_spacing)
+        
+        # Create a new object to hold the contours
+        if (bpy.ops.object.mode_set.poll()):
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.add(type='MESH')
+        loop = bpy.context.object
+        loop.name = self.axi_plane.loop_name
+        
+        bpy.ops.object.add(type='MESH')
+        loop = bpy.context.object
+        loop.name = self.sag_plane.loop_name
+        
+        bpy.ops.object.add(type='MESH')
+        loop = bpy.context.object
+        loop.name = self.cor_plane.loop_name
 
     def update_all_intersections (self, mesh):
         mesh.hide = False
@@ -168,9 +195,7 @@ class BlendSeg (object):
             return
 
         # Generate CMesh objects for planes, mesh
-        try:
-            self.mesh_qem
-        except AttributeError:
+        if self.mesh_qem is None:
             print("Generating Quad-Edge Meshes")
             start = time()
             self.sp_qem = BlenderQEMeshBuilder.construct_from_blender_object(sp)
@@ -182,10 +207,8 @@ class BlendSeg (object):
             print("Took %1.5f seconds" % seconds)
 
         # Call this to update matrix_world
-        bpy.data.scenes[0].update()
-        try:
-            self.mesh_tree
-        except AttributeError:
+        #bpy.data.scenes[0].update()
+        if self.mesh_tree is None:
             print("Generating AABB Trees")
             start = time()
             self.sp_tree = AABBTree(self.sp_qem)
@@ -249,7 +272,7 @@ class BlendSeg (object):
         
         gc.disable()
         if (not sp.hide):
-            print("Computing sagittal intersection...")
+            print("  Computing sagittal intersection...")
             start = time()
             loop1 = self.compute_intersection_qem(bpy.context.scene,
                                                   self.sag_plane,
@@ -257,9 +280,9 @@ class BlendSeg (object):
                                                   self.sp_tree, self.mesh_tree,
                                                   self.sag_plane.loop_name)
             seconds = time() - start
-            print("Took %1.5f seconds" % (seconds))
+            print("  Took %1.5f seconds" % (seconds))
         if (not ap.hide):
-            print("Computing axial intersection...")
+            print("  Computing axial intersection...")
             start = time()
             loop2 = self.compute_intersection_qem(bpy.context.scene,
                                                   self.axi_plane,
@@ -267,9 +290,9 @@ class BlendSeg (object):
                                                   self.ap_tree, self.mesh_tree,
                                                   self.axi_plane.loop_name)
             seconds = time() - start
-            print("Took %1.5f seconds" % (seconds))
+            print("  Took %1.5f seconds" % (seconds))
         if (not cp.hide):
-            print("Computing coronal intersection...")
+            print("  Computing coronal intersection...")
             start = time()
             loop3 = self.compute_intersection_qem(bpy.context.scene,
                                                   self.cor_plane,
@@ -277,7 +300,7 @@ class BlendSeg (object):
                                                   self.cp_tree, self.mesh_tree,
                                                   self.cor_plane.loop_name)
             seconds = time() - start
-            print("Took %1.5f seconds" % (seconds))
+            print("  Took %1.5f seconds" % (seconds))
 
         gc.enable()
         
@@ -289,9 +312,11 @@ class BlendSeg (object):
         if (not cp.hide and loop3):
             loop3.select = True
 
-        bpy.data.scenes[0].update()
+        if False:
+            bpy.data.scenes[0].update()
 
         bpy.context.scene.objects.active = mesh
+        mesh.select = True
         bpy.ops.object.mode_set(mode='SCULPT')
         
         mesh.hide = True
@@ -305,13 +330,13 @@ class BlendSeg (object):
         contour representing their intersection.
         """
         # Try to remove old loop before anything else
-        try:
-            loop = scene.objects[loop_name]
-        except KeyError:
-            print("Couldn't find old loop! Continuing")
-        else:
-            scene.objects.unlink(loop)
-            bpy.data.objects.remove(loop)
+        # try:
+        #     loop = scene.objects[loop_name]
+        # except KeyError:
+        #     print("Couldn't find old loop! Continuing")
+        # else:
+        #     scene.objects.unlink(loop)
+        #     bpy.data.objects.remove(loop)
 
         #print("  Searching for ix_points")
         start = time()
@@ -321,7 +346,18 @@ class BlendSeg (object):
         ix_contours = ixer.compute_intersection_with_plane(mesh, mesh_tree, sl_plane)
         seconds = time() - start
         #print("  Took %1.5f seconds" % seconds)
-        
+
+        try:
+            loop = bpy.context.scene.objects[loop_name]
+        except KeyError:
+            print("Couldn't find " + loop + "!")
+            return
+
+        for vert in loop.data.vertices:
+            vert.select = True
+        if bpy.ops.mesh.delete.poll():
+            bpy.ops.mesh.delete()
+
         #print("  Creating blender contour")
         start = time()
         loop = self._create_blender_contour(ix_contours, loop_name)
@@ -340,12 +376,17 @@ class BlendSeg (object):
             return None
         
         # Create a new object to hold the contours
-        if (bpy.ops.object.mode_set.poll()):
-            bpy.ops.object.mode_set(mode='OBJECT')
-        bpy.ops.object.add(type='MESH')
-        loop = bpy.context.object
-        loop.name = loop_name
-
+        # if (bpy.ops.object.mode_set.poll()):
+        #     bpy.ops.object.mode_set(mode='OBJECT')
+        # bpy.ops.object.add(type='MESH')
+        # loop = bpy.context.object
+        # loop.name = loop_name
+        try:
+            loop = bpy.context.scene.objects[loop_name]
+        except KeyError:
+            print("Couldn't find " + loop + "!")
+            return
+        
         for contour in contours:
             # print ("Contour length: " + str(len(contour)))
 
@@ -377,7 +418,7 @@ class BlendSeg (object):
                 edge = loop.data.edges[-1]
                 edge.vertices = (vert_start_idx + num_ixps - 1, vert_start_idx)
 
-        loop.data.update()
+        #loop.data.update()
         
         return loop
 

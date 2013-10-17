@@ -97,7 +97,7 @@ class SlicePlane (object):
         elif (self.orientation == Orientation('CORONAL')):
             self.loop_name = 'loopCor'
         else:
-            raise ValueError("WHy isn't it OrientatioN?")
+            raise ValueError("Why isn't it Orientation?")
 
         self.plane_name = str(self.orientation)
             
@@ -122,7 +122,7 @@ class SlicePlane (object):
         if (img != None):
             plane.data.uv_textures[0].data[0].image = img
         else:
-            raise ValueException("Couldn't find image!")
+            raise ValueError("Couldn't find image!")
         plane.data.update()
 
     def get_image_from_location (self, loc):
@@ -155,17 +155,29 @@ class SlicePlane (object):
             
         return img
 
+    def get_location(self):
+        """ Searches Blender scene for object and returns its position
+        if found
+        """
+        try:
+            plane = bpy.context.scene.objects[self.plane_name]
+        except KeyError:
+            print("Couldn't find plane in scene!")
+            return None
+
+        return plane.location
+
     def move_callback(self, scene):
         """ Callback method which checks if my plane has moved,
         and if so, updates the image.
 
         Also constrains movement along primary axis dir'n.
         """
-        
         try:
             plane = scene.objects[self.plane_name]
         except KeyError:
             print(self.plane_name + " wasn't found!")
+            return
         
         if plane.is_updated:
             self.enforce_location(plane)

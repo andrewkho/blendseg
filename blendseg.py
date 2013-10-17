@@ -103,8 +103,7 @@ class BlendSeg (object):
     
     def __init__(self):
         # bpy.app.handlers.scene_update_pre.append(self.scene_update_callback)
-        # bpy.app.handlers.scene_update_post.append(self.scene_update_callback)
-        pass
+        bpy.app.handlers.scene_update_post.append(self.scene_update_callback)
 
     def scene_update_callback(self, scene):
         """ Hook this into scene_update_post.
@@ -117,16 +116,16 @@ class BlendSeg (object):
             print(self.mesh_qem.blender_name + " wasn't found!")
             return
         
-        if mesh.is_updated_data:
-            print("Mesh data was updated!!")
-            #self.mesh_qem.is_updated = True
+        # if mesh.is_updated_data:
+        #     print("Mesh data was updated!!")
         if mesh.is_updated:
             print("Mesh was updated!!")
+            self.mesh_qem.is_updated = True
 
-        if mesh.data.is_updated_data:
-            print("Mesh Data data was updated!!")
-        if mesh.data.is_updated:
-            print("Mesh Data was updated!!")
+        # if mesh.data.is_updated_data:
+        #     print("Mesh Data data was updated!!")
+        # if mesh.data.is_updated:
+        #     print("Mesh Data was updated!!")
 
     def load_img_stacks(self):
         print ("Looking for " + BlendSeg.letter + " image sequence")
@@ -218,8 +217,9 @@ class BlendSeg (object):
         self.sp_qem.update_vertex_positions()
         self.ap_qem.update_vertex_positions()
         self.cp_qem.update_vertex_positions()
-        # if mesh.is_updated_data:
-        self.mesh_qem.update_vertex_positions()
+        if self.mesh_qem.is_updated:
+            print("updating mesh_qem!")
+            self.mesh_qem.update_vertex_positions()
         #self.mesh_qem.update_vertex_positions_mt()
         seconds = time() - start
         print("  Took %1.5f seconds" % (seconds))
@@ -229,8 +229,8 @@ class BlendSeg (object):
         self.sp_qem.update_bounding_boxes()
         self.ap_qem.update_bounding_boxes()
         self.cp_qem.update_bounding_boxes()
-        #if mesh.is_updated_data:
-        self.mesh_qem.update_bounding_boxes()
+        if self.mesh_qem.is_updated:
+            self.mesh_qem.update_bounding_boxes()
         seconds = time() - start
         print("  Took %1.5f seconds" % (seconds))
         
@@ -239,9 +239,9 @@ class BlendSeg (object):
         self.sp_tree.update_bbs()
         self.ap_tree.update_bbs()
         self.cp_tree.update_bbs()
-        #if self.mesh_qem.is_updated:
-        self.mesh_tree.update_bbs()
-        #self.mesh_tree.update_bbs_mt()
+        if self.mesh_qem.is_updated:
+            #self.mesh_tree.update_bbs()
+            self.mesh_tree.update_bbs_mt()
         seconds = time() - start
         print("  Took %1.5f seconds" % (seconds))
 
@@ -252,6 +252,7 @@ class BlendSeg (object):
             print("Computing sagittal intersection...")
             start = time()
             loop1 = self.compute_intersection_qem(bpy.context.scene,
+                                                  self.sag_plane,
                                                   self.sp_qem, self.mesh_qem,
                                                   self.sp_tree, self.mesh_tree,
                                                   self.sag_plane.loop_name)
@@ -261,6 +262,7 @@ class BlendSeg (object):
             print("Computing axial intersection...")
             start = time()
             loop2 = self.compute_intersection_qem(bpy.context.scene,
+                                                  self.axi_plane,
                                                   self.ap_qem, self.mesh_qem,
                                                   self.ap_tree, self.mesh_tree,
                                                   self.axi_plane.loop_name)
@@ -270,6 +272,7 @@ class BlendSeg (object):
             print("Computing coronal intersection...")
             start = time()
             loop3 = self.compute_intersection_qem(bpy.context.scene,
+                                                  self.cor_plane,
                                                   self.cp_qem, self.mesh_qem,
                                                   self.cp_tree, self.mesh_tree,
                                                   self.cor_plane.loop_name)
@@ -294,6 +297,7 @@ class BlendSeg (object):
         mesh.hide = True
 
     def compute_intersection_qem (self, scene,
+                                  sl_plane,
                                   plane, mesh,
                                   plane_tree, mesh_tree,
                                   loop_name):
@@ -312,8 +316,9 @@ class BlendSeg (object):
         #print("  Searching for ix_points")
         start = time()
         ixer = Intersector()
-        ix_contours = ixer.compute_intersection_contour(mesh, plane,
-                                                        mesh_tree, plane_tree)
+        # ix_contours = ixer.compute_intersection_contour(mesh, plane,
+        #                                                 mesh_tree, plane_tree)
+        ix_contours = ixer.compute_intersection_with_plane(mesh, mesh_tree, sl_plane)
         seconds = time() - start
         #print("  Took %1.5f seconds" % seconds)
         

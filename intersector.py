@@ -3,10 +3,13 @@ from time import time
 
 # mathutils is a blender package... This should maybe be moved
 from mathutils.geometry import intersect_ray_tri
+from mathutils.geometry import intersect_line_plane
 from mathutils import Vector
 
 from .quad_edge_mesh.quad_edge_mesh import QEMesh
 from .quad_edge_mesh.aabb_tree import AABBTree
+
+from .slice_plane import SlicePlane
 
 class Intersector (object):
     def __init__(self):
@@ -14,6 +17,46 @@ class Intersector (object):
 
     def clear_saved_results(self):
         self._saved_results = {}
+
+    def compute_intersection_with_plane(self, mesh, tree, plane):
+        """ Compute the intersection with a plane.
+        Hopefully this optimization will speed things up dramatically.
+        mesh is a QEMesh, tree is an AABBTree
+        plane is a slice_plane
+        """
+        if not isinstance(mesh, QEMesh):
+            raise TypeError("mesh must be of type QEMesh!")
+        if not isinstance(tree, AABBTree):
+            raise TypeError("tree must be of type AABBTree!")
+        if not isinstance(plane, SlicePlane):
+            raise TypeError("plane must be of type SlicePlane!")
+
+        print("    AABB Tree checking (with plane)")
+        start = time()
+        orientation = plane.orientation.__index__()
+        pos_vec = plane.get_location()
+        position = pos_vec[plane.orientation]
+        faces = tree.collides_with_orthogonal_plane(orientation, position)
+        seconds = time() - start
+        print("    Took %1.5f seconds" % seconds)
+
+        print("    Deep search for intersection (with plane)")
+        start = time()
+        ix_points = []
+        for face in faces:
+            new_ixpoints = self._intersect_face_plane(face, orientation, position)
+            ix_points.extend(new_ixpoints)
+        seconds = time() - start
+        print("    Took %1.5f seconds" % seconds)
+        
+        print("found %d ixpoints" % len(self._saved_results))
+        print("    Constructing contour")
+        start = time()
+        ix_contours = self._create_intersection_contours(ix_points)
+        seconds = time() - start
+        print("    Took %1.5f seconds" % seconds)
+        
+        return ix_contours
     
     def compute_intersection_contour(self, mesh1, mesh2, tree1, tree2):
         """ Compute the intersection contour of mesh1 and mesh2.
@@ -21,7 +64,6 @@ class Intersector (object):
         tree1, tree2 must be of type AABBTree.
         """
         self.clear_saved_results()
-
 
         if not isinstance(mesh1, QEMesh):
             raise TypeError("mesh1 must be of type QEMesh!")
@@ -50,11 +92,11 @@ class Intersector (object):
         print("    Took %1.5f seconds" % seconds)
 
         print("found %d ixpoints" % len(self._saved_results))
-        #print("    Constructing contour")
+        print("    Constructing contour")
         start = time()
         ix_contours = self._create_intersection_contours(ix_points)
         seconds = time() - start
-        #print("    Took %1.5f seconds" % seconds)
+        print("    Took %1.5f seconds" % seconds)
 
         return ix_contours
 
@@ -165,6 +207,23 @@ class Intersector (object):
                 vector[1]*vector[1] +
                 vector[2]*vector[2])
 
+    def _intersect_face_plane(self, face1, orientation, position):
+        """ Compute intersection between a QEFace and an infinite plane
+        Return a list of IntersectionPoints.
+        """
+        ix_points = []
+
+        for edge in face1.edges:
+            self._intersect_edge_plane(edge, orientation, position, ix_points)
+
+        # if (len(ix_points) == 1 or
+        #     len(ix_points) == 3):
+        #     raise ValueError("Shouldn't happen")
+        # else:
+        #     print("normal result")
+            
+        return ix_points
+    
     def _intersect_faces(self, face1, face2):
         """ compute intersection of two QEFace objects.
         Return a list of IntersectionPoints.
@@ -177,6 +236,53 @@ class Intersector (object):
 
         return ix_points
 
+    def _intersect_edge_plane(self, edge, orientation, position, ix_points):
+        """ Find the intersection between this edge and plane.
+        Append the IntersectionPoint (if any) to ix_points.
+        """
+        if (edge, None) in self._saved_results:
+            return self._saved_results[(edge, None)]
+
+        if (edge.t_vert.pos[orientation] > position and
+            edge.b_vert.pos[orientation] > position):
+            point = None
+        elif (edge.t_vert.pos[orientation] < position and
+              edge.b_vert.pos[orientation] < position):
+            point = None
+        else:
+            vec_t_vert = Vector((edge.t_vert.pos))
+            vec_b_vert = Vector((edge.b_vert.pos))
+
+            plane_co = Vector(([0,0,0]))
+            plane_co[orientation] = position
+
+            plane_norm = Vector(([0,0,0]))
+            plane_norm[orientation] = 1.
+
+            point = intersect_line_plane(vec_t_vert,
+                                         vec_b_vert,
+                                         plane_co,
+                                         plane_norm,
+                                         False) # only intersect segment
+
+        if not point:
+            ix_point = None
+            # print("Not found!")
+            # print("  t_vert: " + str(edge.t_vert.pos))
+            # print("  b_vert: " + str(edge.b_vert.pos))
+            # print("  pl_pos: " + str(position))
+        else:
+            # print("Found ixpoint! " + str(point))
+            # print("  t_vert: " + str(vec_t_vert))
+            # print("  b_vert: " + str(vec_b_vert))
+            # print("  pl_pos: " + str(position))
+            ix_point = IntersectionPoint(edge, None, point)
+            ix_points.append(ix_point)
+            
+        self._saved_results[(edge, None)] = ix_point
+
+        return ix_point
+    
     def _intersect_edge_face(self, edge, face, ix_points):
         """ Compute intersection for one edge and one face.
         Returns None if no intersection occured, and a IntersectionPoint
@@ -193,7 +299,8 @@ class Intersector (object):
                                   Vector((face.verts[1].pos)),
                                   Vector((face.verts[2].pos)),
                                   vec_dir,
-                                  vec_b_vert)
+                                  vec_b_vert,
+                                  True) # restrict ix to tri face instead of plane
         # point = intersect_ray_tri(face.verts[0].get_blender_pos(),
         #                           face.verts[1].get_blender_pos(),
         #                           face.verts[2].get_blender_pos(),
@@ -202,7 +309,8 @@ class Intersector (object):
 
         if not point:
             ix_point = None
-        elif self._get_norm_squared(point - vec_b_vert) > self._get_norm_squared(vec_dir):
+        elif (self._get_norm_squared(point - vec_b_vert) >
+              self._get_norm_squared(vec_dir)):
             ix_point = None
         elif (point - vec_b_vert) * vec_dir < 0:
             ix_point = None

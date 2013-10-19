@@ -353,11 +353,15 @@ class BlendSeg (object):
             print("Couldn't find " + loop + "!")
             return
 
-        for vert in loop.data.vertices:
-            vert.select = True
-        if bpy.ops.mesh.delete.poll():
+        # Clear all old vertices
+        bpy.context.scene.objects.active = loop
+        if not bpy.ops.mesh.delete.poll():
+            bpy.ops.object.mode_set(mode='EDIT', toggle=True)
             bpy.ops.mesh.delete()
-
+            bpy.ops.object.mode_set(mode='EDIT', toggle=True)
+        else:
+            bpy.ops.mesh.delete()
+        
         #print("  Creating blender contour")
         start = time()
         loop = self._create_blender_contour(ix_contours, loop_name)

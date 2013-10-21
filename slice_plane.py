@@ -100,6 +100,7 @@ class SlicePlane (object):
             raise ValueError("Why isn't it Orientation?")
 
         self.plane_name = str(self.orientation)
+        self.is_updated = False
             
         plane = self.create_plane()
         self.update_image(plane)
@@ -182,6 +183,7 @@ class SlicePlane (object):
         if plane.is_updated:
             self.enforce_location(plane)
             self.update_image(plane)
+            self.is_updated = True
 
     def register_callback(self):
         """ Register callback with blender handler. """

@@ -100,17 +100,20 @@ class BlendSeg (object):
             BlendSeg.__instance.create_planes()
             BlendSeg.__instance.mesh_qem = None
             BlendSeg.__instance.mesh_tree = None
+            BlendSeg.__instance.is_updating = False
 
+            bpy.app.handlers.scene_update_post.append(
+                BlendSeg.__instance.scene_update_callback)
+            #if self.is_interactive:
+            bpy.app.handlers.scene_update_pre.append(
+                BlendSeg.__instance.scene_update_contour_callback)
+                
         return BlendSeg.__instance
     
     def __init__(self):
+        pass
         #bpy.app.handlers.scene_update_post.clear()
         # bpy.app.handlers.scene_update_pre.append(self.scene_update_callback)
-        bpy.app.handlers.scene_update_post.append(self.scene_update_callback)
-
-        #if self.is_interactive:
-        if False:
-            bpy.app.handlers.scene_update_post.append(self.scene_update_contour_callback)
 
     def scene_update_callback(self, scene):
         """ Hook this into scene_update_post.
@@ -131,13 +134,30 @@ class BlendSeg (object):
         """ Update the intersection contours in a callback.
         If the mesh is small enough, it shouldn't be a big deal.
         """
+
+        if self.is_updating:
+            return
+
+        if (not self.sag_plane.is_updated and
+            not self.axi_plane.is_updated and
+            not self.cor_plane.is_updated and
+            not self.mesh_qem.is_updated):
+            return
+        
         try:
             mesh = scene.objects[self.mesh_qem.blender_name]
         except KeyError:
             print(self.mesh_qem.blender_name + " wasn't found!")
             return
 
+        self.is_updating = True
+        print("Trying to update")
         self.update_all_intersections(mesh)
+        self.is_updating = False
+        self.sag_plane.is_updated = False
+        self.cor_plane.is_updated = False
+        self.axi_plane.is_updated = False
+        self.mesh_qem.is_updated = False
 
     def load_img_stacks(self):
         print ("Looking for " + BlendSeg.letter + " image sequence")
@@ -268,8 +288,6 @@ class BlendSeg (object):
         seconds = time() - start
         print("  Took %1.5f seconds" % (seconds))
 
-        self.mesh_qem.is_updated = False
-        
         gc.disable()
         if (not sp.hide):
             print("  Computing sagittal intersection...")
@@ -320,7 +338,7 @@ class BlendSeg (object):
         bpy.ops.object.mode_set(mode='SCULPT')
         
         mesh.hide = True
-
+        
     def compute_intersection_qem (self, scene,
                                   sl_plane,
                                   plane, mesh,

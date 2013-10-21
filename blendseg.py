@@ -37,8 +37,11 @@ class BlendSegOperator (bpy.types.Operator):
         start = time()
         bs = BlendSeg()
         mesh = bpy.data.objects['Mesh']
-        
+
+        bs.is_updating = True
         bs.update_all_intersections(mesh)
+        bs.is_updating = False
+        
         seconds = time() - start
         print("Took %1.5f seconds." % seconds)
 
@@ -151,8 +154,21 @@ class BlendSeg (object):
             return
 
         self.is_updating = True
-        print("Trying to update")
+
+        # Save cursor position and move to origin
+        # This will fix the position of the contours in Blender v2.68
+        old_position = Vector(scene.cursor_location)
+        scene.cursor_location = Vector((0., 0., 0.))
+        
+        print("Updating all contours...")
+        start = time()
         self.update_all_intersections(mesh)
+        seconds = time() - start
+        print("Took %1.5f seconds" % seconds)
+        
+        # Return cursor position to where it was before calling execute
+        scene.cursor_location = old_position
+        
         self.is_updating = False
         self.sag_plane.is_updated = False
         self.cor_plane.is_updated = False
@@ -348,13 +364,13 @@ class BlendSeg (object):
         contour representing their intersection.
         """
         # Try to remove old loop before anything else
-        # try:
-        #     loop = scene.objects[loop_name]
-        # except KeyError:
-        #     print("Couldn't find old loop! Continuing")
-        # else:
-        #     scene.objects.unlink(loop)
-        #     bpy.data.objects.remove(loop)
+        try:
+            loop = scene.objects[loop_name]
+        except KeyError:
+            print("Couldn't find old loop! Continuing")
+        else:
+            scene.objects.unlink(loop)
+            bpy.data.objects.remove(loop)
 
         #print("  Searching for ix_points")
         start = time()
@@ -365,20 +381,20 @@ class BlendSeg (object):
         seconds = time() - start
         #print("  Took %1.5f seconds" % seconds)
 
-        try:
-            loop = bpy.context.scene.objects[loop_name]
-        except KeyError:
-            print("Couldn't find " + loop + "!")
-            return
+        # try:
+        #     loop = bpy.context.scene.objects[loop_name]
+        # except KeyError:
+        #     print("Couldn't find " + loop + "!")
+        #     return
 
         # Clear all old vertices
-        bpy.context.scene.objects.active = loop
-        if not bpy.ops.mesh.delete.poll():
-            bpy.ops.object.mode_set(mode='EDIT', toggle=True)
-            bpy.ops.mesh.delete()
-            bpy.ops.object.mode_set(mode='EDIT', toggle=True)
-        else:
-            bpy.ops.mesh.delete()
+        # bpy.context.scene.objects.active = loop
+        # if not bpy.ops.mesh.delete.poll():
+        #     bpy.ops.object.mode_set(mode='EDIT', toggle=True)
+        #     bpy.ops.mesh.delete()
+        #     bpy.ops.object.mode_set(mode='EDIT', toggle=True)
+        # else:
+        #     bpy.ops.mesh.delete()
         
         #print("  Creating blender contour")
         start = time()
@@ -398,16 +414,16 @@ class BlendSeg (object):
             return None
         
         # Create a new object to hold the contours
-        # if (bpy.ops.object.mode_set.poll()):
-        #     bpy.ops.object.mode_set(mode='OBJECT')
-        # bpy.ops.object.add(type='MESH')
-        # loop = bpy.context.object
-        # loop.name = loop_name
-        try:
-            loop = bpy.context.scene.objects[loop_name]
-        except KeyError:
-            print("Couldn't find " + loop + "!")
-            return
+        if bpy.ops.object.mode_set.poll():
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.add(type='MESH')
+        loop = bpy.context.object
+        loop.name = loop_name
+        # try:
+        #     loop = bpy.context.scene.objects[loop_name]
+        # except KeyError:
+        #     print("Couldn't find " + loop + "!")
+        #     return
         
         for contour in contours:
             # print ("Contour length: " + str(len(contour)))

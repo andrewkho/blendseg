@@ -251,7 +251,6 @@ class BlendSeg (object):
                 print("Took %1.5f seconds" % seconds)
 
         # Call this to update matrix_world
-        #bpy.data.scenes[0].update()
         if self.mesh_tree is None:
             if BlendSeg.show_timing_msgs:
                 print("Generating AABB Trees")
@@ -262,13 +261,9 @@ class BlendSeg (object):
             self.mesh_tree = AABBTree(self.mesh_qem)
 
             # First time initialization
-            # self.sp_qem.update_vertex_positions()
             self.sp_qem.update_bounding_boxes()
-            # self.ap_qem.update_vertex_positions()
             self.ap_qem.update_bounding_boxes()
-            # self.cp_qem.update_vertex_positions()
             self.cp_qem.update_bounding_boxes()
-            # self.mesh_qem.update_vertex_positions()
             self.mesh_qem.update_bounding_boxes()
 
             self.sp_tree.update_bbs()
@@ -420,26 +415,13 @@ class BlendSeg (object):
         ixer = Intersector()
         # ix_contours = ixer.compute_intersection_contour(mesh, plane,
         #                                                 mesh_tree, plane_tree)
-        ix_contours = ixer.compute_intersection_with_plane(mesh, mesh_tree, sl_plane)
+        ix_contours = ixer.compute_intersection_with_plane(mesh,
+                                                           mesh_tree,
+                                                           sl_plane)
         if BlendSeg.show_timing_msgs:
             seconds = time() - start
             print("  Took %1.5f seconds" % seconds)
 
-        # try:
-        #     loop = bpy.context.scene.objects[loop_name]
-        # except KeyError:
-        #     print("Couldn't find " + loop + "!")
-        #     return
-
-        # Clear all old vertices
-        # bpy.context.scene.objects.active = loop
-        # if not bpy.ops.mesh.delete.poll():
-        #     bpy.ops.object.mode_set(mode='EDIT', toggle=True)
-        #     bpy.ops.mesh.delete()
-        #     bpy.ops.object.mode_set(mode='EDIT', toggle=True)
-        # else:
-        #     bpy.ops.mesh.delete()
-        
         if BlendSeg.show_timing_msgs:
             print("  Creating blender contour")
             start = time()
@@ -465,15 +447,8 @@ class BlendSeg (object):
         bpy.ops.object.add(type='MESH')
         loop = bpy.context.object
         loop.name = loop_name
-        # try:
-        #     loop = bpy.context.scene.objects[loop_name]
-        # except KeyError:
-        #     print("Couldn't find " + loop + "!")
-        #     return
         
         for contour in contours:
-            # print ("Contour length: " + str(len(contour)))
-
             vert_start_idx = len(loop.data.vertices)
             edge_start_idx = len(loop.data.edges)
             if contour[0] == contour[-1]:
@@ -492,7 +467,6 @@ class BlendSeg (object):
             for idx in range(0, num_ixps):
                 vert = loop.data.vertices[vert_start_idx + idx]
                 vert.co = tuple(contour[idx].point)
-                # print("vert.co: " + str(vert.co))
 
             for idx in range(0, num_ixps - 1):
                 edge = loop.data.edges[edge_start_idx + idx]
@@ -502,8 +476,6 @@ class BlendSeg (object):
                 edge = loop.data.edges[-1]
                 edge.vertices = (vert_start_idx + num_ixps - 1, vert_start_idx)
 
-        #loop.data.update()
-        
         return loop
 
 def register():

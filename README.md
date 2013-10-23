@@ -15,7 +15,9 @@ After changing the mesh by sculpting, the user must enter and exit EDIT mode (by
 Status of tested Blender versions:
 ==================
 Blender 2.62 (Ubuntu 12.04 repository version) -- Does not work
+
 Blender 2.63a -- works
+
 Blender 2.68 -- works
 
 

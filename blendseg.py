@@ -133,7 +133,8 @@ class BlendSeg (object):
             return
         
         if mesh.is_updated:
-            print("Mesh was updated!!")
+            if BlendSeg.show_timing_msgs:
+                print(self.mesh_qem.blender_name + " was updated!!")
             self.mesh_qem.is_updated = True
             
     def scene_update_contour_callback(self, scene):

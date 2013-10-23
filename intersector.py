@@ -12,6 +12,8 @@ from .quad_edge_mesh.aabb_tree import AABBTree
 from .slice_plane import SlicePlane
 
 class Intersector (object):
+    show_timing_msgs = False
+    
     def __init__(self):
         self._saved_results = {}
 
@@ -31,30 +33,36 @@ class Intersector (object):
         if not isinstance(plane, SlicePlane):
             raise TypeError("plane must be of type SlicePlane!")
 
-        print("    AABB Tree checking (with plane)")
-        start = time()
+        if Intersector.show_timing_msgs:
+            print("    AABB Tree checking (with plane)")
+            start = time()
         orientation = plane.orientation.__index__()
         pos_vec = plane.get_location()
         position = pos_vec[plane.orientation]
         faces = tree.collides_with_orthogonal_plane(orientation, position)
-        seconds = time() - start
-        print("    Took %1.5f seconds" % seconds)
+        if Intersector.show_timing_msgs:
+            seconds = time() - start
+            print("    Took %1.5f seconds" % seconds)
 
-        print("    Deep search for intersection (with plane)")
-        start = time()
+        if Intersector.show_timing_msgs:
+            print("    Deep search for intersection (with plane)")
+            start = time()
         ix_points = []
         for face in faces:
             new_ixpoints = self._intersect_face_plane(face, orientation, position)
             ix_points.extend(new_ixpoints)
-        seconds = time() - start
-        print("    Took %1.5f seconds" % seconds)
+        if Intersector.show_timing_msgs:
+            seconds = time() - start
+            print("    Took %1.5f seconds" % seconds)
         
         # print("found %d ixpoints" % len(self._saved_results))
-        print("    Constructing contour")
-        start = time()
+        if Intersector.show_timing_msgs:
+            print("    Constructing contour")
+            start = time()
         ix_contours = self._create_intersection_contours(ix_points)
-        seconds = time() - start
-        print("    Took %1.5f seconds" % seconds)
+        if Intersector.show_timing_msgs:
+            seconds = time() - start
+            print("    Took %1.5f seconds" % seconds)
         
         return ix_contours
     
@@ -74,29 +82,36 @@ class Intersector (object):
         if not isinstance(tree2, AABBTree):
             raise TypeError("tree2 must be of type AABBTree!")
 
-        print("    AABB Tree collision")
-        start = time()
+        if Intersector.show_timing_msgs:
+            print("    AABB Tree collision")
+            start = time()
         pairs = tree1.collides_with_tree(tree2)
-        seconds = time() - start
-        print("    Took %1.5f seconds" % seconds)
+        if Intersector.show_timing_msgs:
+            seconds = time() - start
+            print("    Took %1.5f seconds" % seconds)
 
-        print("Searching %d pairs" % len(pairs))
+        if Intersector.show_timing_msgs:
+            print("Searching %d pairs" % len(pairs))
 
-        print("    Deep search for intersections")
-        start = time()
+        if Intersector.show_timing_msgs:
+            print("    Deep search for intersections")
+            start = time()
         ix_points = []
         for pair in pairs:
             new_ixpoints = self._intersect_faces(pair[0], pair[1])
             ix_points.extend(new_ixpoints)
-        seconds = time() - start
-        print("    Took %1.5f seconds" % seconds)
+        if Intersector.show_timing_msgs:
+            seconds = time() - start
+            print("    Took %1.5f seconds" % seconds)
 
-        print("found %d ixpoints" % len(self._saved_results))
-        print("    Constructing contour")
-        start = time()
+        if Intersector.show_timing_msgs:
+            print("found %d ixpoints" % len(self._saved_results))
+            print("    Constructing contour")
+            start = time()
         ix_contours = self._create_intersection_contours(ix_points)
-        seconds = time() - start
-        print("    Took %1.5f seconds" % seconds)
+        if Intersector.show_timing_msgs:
+            seconds = time() - start
+            print("    Took %1.5f seconds" % seconds)
 
         return ix_contours
 
@@ -197,7 +212,17 @@ class Intersector (object):
             
             ixp = next_ixp
             contour.append(ixp)
-            ix_points.remove(ixp)
+            try:
+                ix_points.remove(ixp)
+            except ValueError:
+                print("Couldn't remove ixp from ix_points!")
+                print("len(ix_points): " + str(len(ix_points)))
+                for an_ixp in ix_points:
+                    print(str(an_ixp))
+                if ixp is not None:
+                    print("The point in question...")
+                    print(str(ixp))
+                
 
         return contour
         
@@ -333,3 +358,14 @@ class IntersectionPoint (object):
         self.edge = edge
         self.face = face
         self.point = point
+
+    def __str__(self):
+        ret = "Point info:\n"
+        ret += "  point: (%1.5f, %1.5f, %1.5f)\n" % (self.point.x, self.point.y, self.point.z)
+        ret += "  face: "
+        if self.face is None:
+            ret += " None\n"
+        else:
+            ret += str(self.face.verts) + "\n"
+        ret += "  edge: (%d, %d)\n" % (self.edge.t_vert.index, self.edge.b_vert.index)
+        return ret

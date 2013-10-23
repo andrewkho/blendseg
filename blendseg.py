@@ -93,11 +93,14 @@ class BlendSeg (object):
     image_origin = tuple([0.,21.5,-51])
     image_spacing = tuple([0.468,0.468,0.5])
 
+    show_timing_msgs = False
+
     __instance = None
     def __new__(cls):
 
         if BlendSeg.__instance is None:
-            print("Initializing BlendSeg")
+            if BlendSeg.show_timing_msgs:
+                print("Initializing BlendSeg")
             BlendSeg.__instance = super(BlendSeg, cls).__new__(cls)
             BlendSeg.__instance.load_img_stacks()
             BlendSeg.__instance.create_planes()
@@ -159,12 +162,14 @@ class BlendSeg (object):
         # This will fix the position of the contours in Blender v2.68
         old_position = Vector(scene.cursor_location)
         scene.cursor_location = Vector((0., 0., 0.))
-        
-        print("Updating all contours...")
-        start = time()
+
+        if BlendSeg.show_timing_msgs:
+            print("Updating all contours...")
+            start = time()
         self.update_all_intersections(mesh)
-        seconds = time() - start
-        print("Took %1.5f seconds" % seconds)
+        if BlendSeg.show_timing_msgs:
+            seconds = time() - start
+            print("Took %1.5f seconds" % seconds)
         
         # Return cursor position to where it was before calling execute
         scene.cursor_location = old_position
@@ -232,21 +237,24 @@ class BlendSeg (object):
 
         # Generate CMesh objects for planes, mesh
         if self.mesh_qem is None:
-            print("Generating Quad-Edge Meshes")
-            start = time()
+            if BlendSeg.show_timing_msgs:
+                print("Generating Quad-Edge Meshes")
+                start = time()
             self.sp_qem = BlenderQEMeshBuilder.construct_from_blender_object(sp)
             self.ap_qem = BlenderQEMeshBuilder.construct_from_blender_object(ap)
             self.cp_qem = BlenderQEMeshBuilder.construct_from_blender_object(cp)
             self.mesh_qem = BlenderQEMeshBuilder.construct_from_blender_object(mesh)
             self.mesh_qem.is_rigid = False
-            seconds = time() - start
-            print("Took %1.5f seconds" % seconds)
+            if BlendSeg.show_timing_msgs:
+                seconds = time() - start
+                print("Took %1.5f seconds" % seconds)
 
         # Call this to update matrix_world
         #bpy.data.scenes[0].update()
         if self.mesh_tree is None:
-            print("Generating AABB Trees")
-            start = time()
+            if BlendSeg.show_timing_msgs:
+                print("Generating AABB Trees")
+                start = time()
             self.sp_tree = AABBTree(self.sp_qem)
             self.ap_tree = AABBTree(self.ap_qem)
             self.cp_tree = AABBTree(self.cp_qem)
@@ -268,82 +276,114 @@ class BlendSeg (object):
             self.mesh_tree.update_bbs()
             #self.mesh_tree.update_bbs_mt()
             
-            seconds = time() - start
-            print("Took %1.5f seconds" % seconds)
+            if BlendSeg.show_timing_msgs:
+                seconds = time() - start
+                print("Took %1.5f seconds" % seconds)
             
-        print("  Refreshing vertex positions")
+        if BlendSeg.show_timing_msgs:
+            print("  Refreshing vertex positions")
         start = time()
         self.sp_qem.update_vertex_positions()
         self.ap_qem.update_vertex_positions()
         self.cp_qem.update_vertex_positions()
         if self.mesh_qem.is_updated:
-            print("updating mesh_qem!")
+            if BlendSeg.show_timing_msgs:
+                print("updating mesh_qem!")
             self.mesh_qem.update_vertex_positions()
         #self.mesh_qem.update_vertex_positions_mt()
-        seconds = time() - start
-        print("  Took %1.5f seconds" % (seconds))
+        if BlendSeg.show_timing_msgs:
+            seconds = time() - start
+            print("  Took %1.5f seconds" % (seconds))
 
-        print("  Refreshing bounding box positions")
-        start = time()
+        if BlendSeg.show_timing_msgs:
+            print("  Refreshing bounding box positions")
+            start = time()
         self.sp_qem.update_bounding_boxes()
         self.ap_qem.update_bounding_boxes()
         self.cp_qem.update_bounding_boxes()
         if self.mesh_qem.is_updated:
             self.mesh_qem.update_bounding_boxes()
-        seconds = time() - start
-        print("  Took %1.5f seconds" % (seconds))
+        if BlendSeg.show_timing_msgs:
+            seconds = time() - start
+            print("  Took %1.5f seconds" % (seconds))
         
-        print("  Refreshing aabb trees to see how fast...")
-        start = time()
+        if BlendSeg.show_timing_msgs:
+            print("  Refreshing aabb trees to see how fast...")
+            start = time()
         self.sp_tree.update_bbs()
         self.ap_tree.update_bbs()
         self.cp_tree.update_bbs()
         if self.mesh_qem.is_updated:
             #self.mesh_tree.update_bbs()
             self.mesh_tree.update_bbs_mt()
-        seconds = time() - start
-        print("  Took %1.5f seconds" % (seconds))
+        if BlendSeg.show_timing_msgs:
+            seconds = time() - start
+            print("  Took %1.5f seconds" % (seconds))
 
         gc.disable()
-        if (not sp.hide):
-            print("  Computing sagittal intersection...")
-            start = time()
+        if not sp.hide and (self.sag_plane.is_updated or self.mesh_qem.is_updated):
+            if BlendSeg.show_timing_msgs:
+                print("  Computing sagittal intersection...")
+                start = time()
             loop1 = self.compute_intersection_qem(bpy.context.scene,
                                                   self.sag_plane,
                                                   self.sp_qem, self.mesh_qem,
                                                   self.sp_tree, self.mesh_tree,
                                                   self.sag_plane.loop_name)
-            seconds = time() - start
-            print("  Took %1.5f seconds" % (seconds))
-        if (not ap.hide):
-            print("  Computing axial intersection...")
-            start = time()
+            if BlendSeg.show_timing_msgs:
+                seconds = time() - start
+                print("  Took %1.5f seconds" % (seconds))
+        else:
+            try:
+                loop1 = bpy.context.scene.objects[self.sag_plane.loop_name]
+            except KeyError:
+                loop1 = None
+
+        if not ap.hide and (self.axi_plane.is_updated or self.mesh_qem.is_updated):
+            if BlendSeg.show_timing_msgs:
+                print("  Computing axial intersection...")
+                start = time()
             loop2 = self.compute_intersection_qem(bpy.context.scene,
                                                   self.axi_plane,
                                                   self.ap_qem, self.mesh_qem,
                                                   self.ap_tree, self.mesh_tree,
                                                   self.axi_plane.loop_name)
-            seconds = time() - start
-            print("  Took %1.5f seconds" % (seconds))
-        if (not cp.hide):
-            print("  Computing coronal intersection...")
-            start = time()
+            if BlendSeg.show_timing_msgs:
+                seconds = time() - start
+                print("  Took %1.5f seconds" % (seconds))
+        else:
+            try:
+                loop2 = bpy.context.scene.objects[self.axi_plane.loop_name]
+            except KeyError:
+                loop2 = None
+
+        if not cp.hide and (self.cor_plane.is_updated or self.mesh_qem.is_updated):
+            if BlendSeg.show_timing_msgs:
+                print("  Computing coronal intersection...")
+                start = time()
             loop3 = self.compute_intersection_qem(bpy.context.scene,
                                                   self.cor_plane,
                                                   self.cp_qem, self.mesh_qem,
                                                   self.cp_tree, self.mesh_tree,
                                                   self.cor_plane.loop_name)
-            seconds = time() - start
-            print("  Took %1.5f seconds" % (seconds))
+            if BlendSeg.show_timing_msgs:
+                seconds = time() - start
+                print("  Took %1.5f seconds" % (seconds))
+        else:
+            try:
+                loop3 = bpy.context.scene.objects[self.cor_plane.loop_name]
+            except KeyError:
+                loop3 = None
+
 
         gc.enable()
         
         # These need to be hidden/shown after the all computations
-        if (not sp.hide and loop1):
+        if not sp.hide and loop1:
             loop1.select = True
-        if (not ap.hide and loop2):
+        if not ap.hide and loop2:
             loop2.select = True
-        if (not cp.hide and loop3):
+        if not cp.hide and loop3:
             loop3.select = True
 
         if False:
@@ -367,19 +407,22 @@ class BlendSeg (object):
         try:
             loop = scene.objects[loop_name]
         except KeyError:
-            print("Couldn't find old loop! Continuing")
+            pass
+            #print("Couldn't find old loop! Continuing")
         else:
             scene.objects.unlink(loop)
             bpy.data.objects.remove(loop)
 
-        #print("  Searching for ix_points")
-        start = time()
+        if BlendSeg.show_timing_msgs:
+            print("  Searching for ix_points")
+            start = time()
         ixer = Intersector()
         # ix_contours = ixer.compute_intersection_contour(mesh, plane,
         #                                                 mesh_tree, plane_tree)
         ix_contours = ixer.compute_intersection_with_plane(mesh, mesh_tree, sl_plane)
-        seconds = time() - start
-        #print("  Took %1.5f seconds" % seconds)
+        if BlendSeg.show_timing_msgs:
+            seconds = time() - start
+            print("  Took %1.5f seconds" % seconds)
 
         # try:
         #     loop = bpy.context.scene.objects[loop_name]
@@ -396,11 +439,13 @@ class BlendSeg (object):
         # else:
         #     bpy.ops.mesh.delete()
         
-        #print("  Creating blender contour")
-        start = time()
+        if BlendSeg.show_timing_msgs:
+            print("  Creating blender contour")
+            start = time()
         loop = self._create_blender_contour(ix_contours, loop_name)
-        seconds = time() - start
-        #print("  Took %1.5f seconds" % seconds)
+        if BlendSeg.show_timing_msgs:
+            seconds = time() - start
+            print("  Took %1.5f seconds" % seconds)
         
         return loop
 

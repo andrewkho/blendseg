@@ -215,13 +215,19 @@ class Intersector (object):
             try:
                 ix_points.remove(ixp)
             except ValueError:
-                print("Couldn't remove ixp from ix_points!")
-                print("len(ix_points): " + str(len(ix_points)))
-                for an_ixp in ix_points:
-                    print(str(an_ixp))
-                if ixp is not None:
-                    print("The point in question...")
-                    print(str(ixp))
+                # Might this error have something to do with arithmetic precision?
+                if False:
+                    print("Couldn't remove ixp from ix_points!")
+                    print("len(ix_points): " + str(len(ix_points)))
+
+                    for an_ixp in ix_points:
+                        print(str(an_ixp))
+                    if ixp is not None:
+                        print("The point in question...")
+                        print(str(ixp))
+                print("Warning! Caught exception, aborting intersection code")
+                ix_points.clear()
+                break
                 
 
         return contour
@@ -353,6 +359,7 @@ class IntersectionPoint (object):
     edge is QEEdge.
     face is QEFace.
     Point is stored as a 3-list of floats.
+    Point coordinates can also be accessed as with .x, .y, .z
     """
     def __init__(self, edge, face, point):
         self.edge = edge
@@ -364,8 +371,8 @@ class IntersectionPoint (object):
         ret += "  point: (%1.5f, %1.5f, %1.5f)\n" % (self.point.x, self.point.y, self.point.z)
         ret += "  face: "
         if self.face is None:
-            ret += " None\n"
+            ret += " None"
         else:
-            ret += str(self.face.verts) + "\n"
+            ret += str(self.face.verts)
         ret += "  edge: (%d, %d)\n" % (self.edge.t_vert.index, self.edge.b_vert.index)
         return ret

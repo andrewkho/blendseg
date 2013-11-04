@@ -23,7 +23,7 @@ class Orientation (object):
         if (dirn is not 'AXIAL' and
             dirn is not 'SAGITTAL' and
             dirn is not 'CORONAL'):
-            raise NameException("dirn must be AXIAL, SAGITTAL, or CORONAL")
+            raise NameError("dirn must be AXIAL, SAGITTAL, or CORONAL")
 
         if dirn in Orientation._instances:
             return Orientation._instances[dirn]
@@ -84,22 +84,14 @@ class SlicePlane (object):
         """
 
         self.x_vtx_offset = -1
-        self.use_transparency=False
+        self.use_transparency = False
         self.orientation = orientation
         self.origin = origin
         self.img_names = image_names
         self.spacing = spacing
         
-        if (self.orientation == Orientation('AXIAL')):
-            self.loop_name = 'loopAxi'
-        elif (self.orientation == Orientation('SAGITTAL')):
-            self.loop_name = 'loopSag'
-        elif (self.orientation == Orientation('CORONAL')):
-            self.loop_name = 'loopCor'
-        else:
-            raise ValueError("Why isn't it Orientation?")
-
-        self.plane_name = str(self.orientation)
+        self.loop_name = "loop" + str(self.orientation)[0:3]
+        self.plane_name = "plane"+str(self.orientation)[0:3]
         self.is_updated = False
             
         plane = self.create_plane()
@@ -256,7 +248,7 @@ class SlicePlane (object):
         self.widthp,self.heightp = img.size
         
         """ Make a plane mesh and add to blender """
-        plane = SlicePlane.bl_make_plane(str(self.orientation))
+        plane = SlicePlane.bl_make_plane(self.plane_name)
 
         bpy.ops.object.transform_apply(rotation=True,scale=True)
         if (self.orientation == Orientation('AXIAL')):
@@ -297,7 +289,6 @@ class SlicePlane (object):
         self.register_callback()
 
         return plane
-
 
     @classmethod
     def create_image_texture(cls, image):

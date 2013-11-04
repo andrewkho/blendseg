@@ -52,9 +52,8 @@ class BlendSegOperator (bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         """ Only run if an object named 'Mesh' exists """
-        return 'Mesh' in bpy.data.objects
-
-        
+        return ('Mesh' in bpy.data.objects and
+                context.mode == 'OBJECT')
     
 class BlendSeg (object):
     """ Compute and render the intersections of a mesh.
@@ -73,7 +72,7 @@ class BlendSeg (object):
     corresponding to the 3 principal directions. DICOM is not supported.
     """
     
-    letter = "A"
+    letter = "S"
 
     image_dir = "/home/andrew/workspace/imageBlowup/"+letter+"tiff/"
     image_ext = "*.tif"
@@ -129,7 +128,7 @@ class BlendSeg (object):
         try:
             mesh = scene.objects[self.mesh_qem.blender_name]
         except KeyError:
-            print(self.mesh_qem.blender_name + " wasn't found!")
+            #print(self.mesh_qem.blender_name + " wasn't found!")
             return
         
         if mesh.is_updated:
@@ -141,7 +140,6 @@ class BlendSeg (object):
         """ Update the intersection contours in a callback.
         If the mesh is small enough, it shouldn't be a big deal.
         """
-
         if self.is_updating:
             return
 
@@ -154,9 +152,13 @@ class BlendSeg (object):
         try:
             mesh = scene.objects[self.mesh_qem.blender_name]
         except KeyError:
-            print(self.mesh_qem.blender_name + " wasn't found!")
+            #print(self.mesh_qem.blender_name + " wasn't found!")
             return
 
+        # Does this cause crash?
+        # if mesh.hide_select:
+        #     return
+        
         self.is_updating = True
 
         # Save cursor position and move to origin

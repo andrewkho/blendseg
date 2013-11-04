@@ -90,8 +90,8 @@ class SlicePlane (object):
         self.img_names = image_names
         self.spacing = spacing
         
-        self.loop_name = "loop" + str(self.orientation)[0:3]
-        self.plane_name = "plane"+str(self.orientation)[0:3]
+        self.loop_name = "loop" + str(self.orientation)[:3]
+        self.plane_name = "plane"+str(self.orientation)[:3]
         self.is_updated = False
             
         plane = self.create_plane()

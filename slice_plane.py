@@ -155,7 +155,7 @@ class SlicePlane (object):
         try:
             plane = bpy.context.scene.objects[self.plane_name]
         except KeyError:
-            print("Couldn't find plane in scene!")
+            print("Couldn't find plane in scene while getting location!")
             return None
 
         return plane.location
@@ -178,8 +178,39 @@ class SlicePlane (object):
             self.is_updated = True
 
     def register_callback(self):
-        """ Register callback with blender handler. """
-        bpy.app.handlers.scene_update_pre.append (self.move_callback)
+        """ Register callback with blender handler.
+        """
+        bpy.app.handlers.scene_update_pre.append(
+            self.move_callback)
+
+    def unregister_callback(self):
+        """ Remove callback from blender handler.
+        """
+        bpy.app.handlers.scene_update_pre.remove(
+            self.move_callback)
+
+    def remove_and_cleanup(self):
+        """ Remove this plane and associated loops and callbacks
+        from Blender.
+        """
+        self.unregister_callback()
+
+        scene = bpy.context.scene
+        try:
+            plane = scene.objects[self.plane_name]
+        except KeyError:
+            print(self.plane_name + " wasn't found while trying to delete!")
+        else:
+            scene.objects.unlink(plane)
+            bpy.data.objects.remove(plane)
+
+        try:
+            loop = scene.objects[self.loop_name]
+        except KeyError:
+            print(self.loop_name + " wasn't found while trying to delete!")
+        else:
+            scene.objects.unlink(loop)
+            bpy.data.objects.remove(loop)
 
     @classmethod
     def add_obj(cls, mesh, context):
@@ -215,6 +246,7 @@ class SlicePlane (object):
                      
         meshplane = bpy.data.meshes.new(name)
         meshplane.from_pydata(verts, edges, faces)
+        meshplane.name = name
         obj, base = SlicePlane.add_obj(meshplane, bpy.context)
 
         obj.location = Vector((0.,0.,0.))

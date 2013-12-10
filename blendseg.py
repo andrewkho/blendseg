@@ -36,7 +36,7 @@ class BlendSegOperator (bpy.types.Operator):
         
         start = time()
         bs = BlendSeg()
-        mesh = bpy.data.objects['Mesh']
+        mesh = bpy.data.objects[BlendSeg.blender_mesh_name]
 
         bs.is_updating = True
         bs.update_all_intersections(mesh)
@@ -52,7 +52,7 @@ class BlendSegOperator (bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         """ Only run if an object named 'Mesh' exists """
-        return ('Mesh' in bpy.data.objects and
+        return (BlendSeg.blender_mesh_name in bpy.data.objects and
                 context.mode == 'OBJECT')
     
 class BlendSeg (object):
@@ -72,7 +72,7 @@ class BlendSeg (object):
     corresponding to the 3 principal directions. DICOM is not supported.
     """
     
-    letter = "S"
+    letter = "G"
 
     image_dir = "/home/andrew/workspace/imageBlowup/"+letter+"tiff/"
     image_ext = "*.tif"
@@ -94,8 +94,13 @@ class BlendSeg (object):
 
     show_timing_msgs = False
 
+    blender_mesh_name = "Mesh"
+
     __instance = None
     def __new__(cls):
+        """ Get existing BlendSeg instance, or create a new
+        one if it doesn't exist.
+        """
 
         if BlendSeg.__instance is None:
             if BlendSeg.show_timing_msgs:
@@ -106,24 +111,89 @@ class BlendSeg (object):
             BlendSeg.__instance.mesh_qem = None
             BlendSeg.__instance.mesh_tree = None
             BlendSeg.__instance.is_updating = False
+            
+            BlendSeg.__instance.register_callback()
 
-            bpy.app.handlers.scene_update_post.append(
-                BlendSeg.__instance.scene_update_callback)
-            #if self.is_interactive:
-            bpy.app.handlers.scene_update_pre.append(
-                BlendSeg.__instance.scene_update_contour_callback)
-                
         return BlendSeg.__instance
+
+    @classmethod
+    def _cleanup(cls):
+        """ Delete the existing instance.
+        """
+        if cls.__instance is not None:
+            cls.__instance.remove_and_cleanup()
+            del cls.__instance
+            cls.__instance = None
     
     def __init__(self):
         pass
         #bpy.app.handlers.scene_update_post.clear()
         # bpy.app.handlers.scene_update_pre.append(self.scene_update_callback)
 
+    def register_callback(self):
+        """ Register the contour-update callbacks in Blender.
+        """
+        bpy.app.handlers.scene_update_post.append(
+            self.scene_update_callback)
+        #if self.is_interactive:
+        bpy.app.handlers.scene_update_pre.append(
+            self.scene_update_contour_callback)
+        
+    def unregister_callback(self):
+        """ Remove the contour-update callbacks in Blender.
+        """
+        bpy.app.handlers.scene_update_post.remove(
+            self.scene_update_callback)
+        #if self.is_interactive:
+        bpy.app.handlers.scene_update_pre.remove(
+            self.scene_update_contour_callback)
+
+    def remove_and_cleanup(self):
+        """ Delete all planes, images, and loops associated with
+        this BlendSeg object in Blender.
+        Unregister loop-callbacks and plane-update-callbacks
+        from Blender.
+        """
+        self.unregister_callback()
+        self.delete_planes()
+        self.delete_meshes()
+
+        try:
+            mesh = bpy.context.scene.objects[
+                BlendSeg.blender_mesh_name]
+        except KeyError:
+            print(BlendSeg.blender_mesh_name +
+                  " wasn't found during remove and cleanup!")
+            return
+        
+        bpy.context.scene.objects.active = mesh
+        mesh.select = True
+        mesh.hide = False
+        if not bpy.ops.object.mode_set.poll():
+            print("Failed to set mode to object.")
+            return
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+    def delete_planes(self):
+        """ Delete sag, cor, and axi planes in Blender.
+
+        This will unregister callbacks associated with the planes.
+        Also deletes loops if they exist.
+        """
+        self.axi_plane.remove_and_cleanup()
+        self.cor_plane.remove_and_cleanup()
+        self.sag_plane.remove_and_cleanup()
+
+    def delete_meshes(self):
+        """ Delete all QEM storage (for mesh and 3 planes).
+        """
+        del self.mesh_qem
+        del self.sp_qem
+        del self.ap_qem
+        del self.cp_qem
+
     def scene_update_callback(self, scene):
-        """ Hook this into scene_update_post.
-        Let's use it to deterine if we need to update meshes.
-        I wonder if it can be made interactive?
+        """ Check if the mesh has been sculpted/modified.
         """
         try:
             mesh = scene.objects[self.mesh_qem.blender_name]

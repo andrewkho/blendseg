@@ -1,4 +1,7 @@
 import bpy
+from . import blendseg
+
+
 
 def fget(self):
     """Distance from origin"""
@@ -13,14 +16,16 @@ def fset(self, value):
  
 bpy.types.Object.distance = property(fget, fset)
  
-ob = bpy.context.active_object
-if (ob is not None):
-    print(ob.distance)
-    ob.distance = 2
+# ob = bpy.context.active_object
+# if (ob is not None):
+#     print(ob.distance)
+#     ob.distance = 2
  
 class BlendSegPanel (bpy.types.Panel):
+    # bl_space_type = "VIEW_3D"
+    # bl_region_type = "UI"
     bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
+    bl_region_type = "TOOL_PROPS"
     bl_label = "BlendSeg"
  
     def draw(self, context):

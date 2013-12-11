@@ -71,7 +71,8 @@ class BlenderQEMeshBuilder(object):
                     bqem.add_edge(qee)
                 except ValueError:
                     print("vidx: %d, vidx_1: %d" % (vidx, vidx_1))
-                    print("qee.b_vert: %d, qee.t_vert: %d" % (qee.b_vert.index, qee.t_vert.index))
+                    print("qee.b_vert: %d, qee.t_vert: %d" %
+                          (qee.b_vert.index, qee.t_vert.index))
                     raise ValueError("still nope")
             else:
                 if qee.r_face is not None:
@@ -132,7 +133,7 @@ class BlenderQEMesh(QEMesh):
         return self.get_blender_object().is_updated
 
     def update_vertex_positions(self):
-        self.blobj = self.get_blender_object().data.vertices
+        # self.blobj = self.get_blender_object().data.vertices
         if self.is_rigid:
             for vert in self._vertices:
                 vert.update_pos()
@@ -143,7 +144,7 @@ class BlenderQEMesh(QEMesh):
     def update_vertex_positions_mt(self):
         num_procs = 16
         pool = Pool(processes = num_procs)
-        self.blobj = self.get_blender_object().data.vertices
+        # self.blobj = self.get_blender_object().data.vertices
         
         pool.imap(update_one_vertex_no_matrix, self._vertices, len(self._vertices)//8)
         pool.close()
@@ -159,10 +160,12 @@ class BlenderQEMesh(QEMesh):
         for i in range(num_procs):
             if (i+1) == num_procs:
                 threads.append(Thread(target=update_vertex_list_no_matrix,
-                                      args=(self._vertices[i*slice_size:], blobj.data.vertices)))
+                                      args=(self._vertices[i*slice_size:],
+                                            blobj.data.vertices)))
             else:
                 threads.append(Thread(target=update_vertex_list_no_matrix,
-                                  args=(self._vertices[i*slice_size:(i+1)*slice_size],blobj.data.vertices)))
+                                  args=(self._vertices[i*slice_size:(i+1)*slice_size],
+                                        blobj.data.vertices)))
 
         for t in threads:
             t.start()
@@ -177,7 +180,6 @@ class BlenderQEVertex(QEVertex):
         super(BlenderQEVertex, self).__init__(parent_mesh, index)
         self.blender_vindex = blender_vert_index
         self.blender_pos = None
-        self.is_updated = True
         self.EPSILON = 1e-8
 
     def get_pos(self):
@@ -189,8 +191,8 @@ class BlenderQEVertex(QEVertex):
         
 
     def update_pos_no_matrix(self):
-        #bl_pos = self.mesh.get_blender_object().data.vertices[self.blender_vindex]
-        bl_pos = self.mesh.blobj[self.blender_vindex]
+        bl_pos = self.mesh.get_blender_object().data.vertices[self.blender_vindex]
+        # bl_pos = self.mesh.blobj[self.blender_vindex]
 
         if (abs(self.pos[0] - bl_pos.co[0]) < self.EPSILON and
             abs(self.pos[1] - bl_pos.co[1]) < self.EPSILON and

@@ -1,6 +1,5 @@
 import os
 import glob
-import gc
 
 from time import time
 
@@ -23,9 +22,66 @@ from .intersector import Intersector
 from .blender_quad_edge_mesh import BlenderQEMeshBuilder
 from .quad_edge_mesh.aabb_tree import AABBTree
 
+class BreakBlendSegOperator (bpy.types.Operator):
+    bl_idname = "object.breakblendseg"
+    bl_label = "Break Blendseg"
+
+    def execute(self, context):
+        print ("Breaking...")
+        # Save cursor position and move to origin
+        # This will fix the position of the contours in Blender v2.68
+        old_position = Vector(context.scene.cursor_location)
+        context.scene.cursor_location = Vector((0., 0., 0.))
+        
+        start = time()
+        bs = BlendSeg()
+
+        try:
+            mesh = bpy.data.objects[BlendSeg.blender_mesh_name]
+        except KeyError:
+            print("Couldn't find mesh when running operator: " +
+                  BlendSeg.blender_mesh_name)
+            return {'FINISHED'}
+        
+        bs.is_updating = True
+        bs.update_all_intersections(mesh)
+        bs.is_updating = False
+        
+        seconds = time() - start
+        print("Took %1.5f seconds." % seconds)
+
+        # Return cursor position to where it was before calling execute
+        #context.scene.cursor_location = old_position
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        # wm = context.window_manager
+        # return wm.invoke_props_dialog(self)
+        try:
+            mesh = bpy.data.objects[BlendSeg.blender_mesh_name]
+        except KeyError:
+            print("Couldn't find mesh when running operator: " +
+                  BlendSeg.blender_mesh_name)
+            return {'FINISHED'}
+        
+        mesh.hide = False
+        mesh.select = False
+        
+        return self.execute(context)
+
+    @classmethod
+    def poll(cls, context):
+        """ Only run if an object named 'Mesh' exists """
+        return (BlendSeg.blender_mesh_name in bpy.data.objects and
+                context.mode == 'OBJECT')
+
 class BlendSegOperator (bpy.types.Operator):
     bl_idname = "object.blendseg"
     bl_label = "Blendseg Operator"
+    
+    axi_dir_root = bpy.props.StringProperty(name="Axial images dir. root")
+    cor_dir_root = bpy.props.StringProperty(name="Coronal images dir. root")
+    sag_dir_root = bpy.props.StringProperty(name="Sagittal images dir. root")
     
     def execute(self, context):
         print("Executing...")
@@ -36,8 +92,14 @@ class BlendSegOperator (bpy.types.Operator):
         
         start = time()
         bs = BlendSeg()
-        mesh = bpy.data.objects[BlendSeg.blender_mesh_name]
 
+        try:
+            mesh = bpy.data.objects[BlendSeg.blender_mesh_name]
+        except KeyError:
+            print("Couldn't find mesh when running operator: " +
+                  BlendSeg.blender_mesh_name)
+            return {'FINISHED'}
+        
         bs.is_updating = True
         bs.update_all_intersections(mesh)
         bs.is_updating = False
@@ -46,14 +108,60 @@ class BlendSegOperator (bpy.types.Operator):
         print("Took %1.5f seconds." % seconds)
 
         # Return cursor position to where it was before calling execute
-        context.scene.cursor_location = old_position
+        #context.scene.cursor_location = old_position
         return {'FINISHED'}
+
+    def invoke(self, context, event):
+        # wm = context.window_manager
+        # return wm.invoke_props_dialog(self)
+        try:
+            mesh = bpy.data.objects[BlendSeg.blender_mesh_name]
+        except KeyError:
+            print("Couldn't find mesh when running operator: " +
+                  BlendSeg.blender_mesh_name)
+            return {'FINISHED'}
+        
+        mesh.hide = False
+        mesh.select = False
+        
+        return self.execute(context)
 
     @classmethod
     def poll(cls, context):
         """ Only run if an object named 'Mesh' exists """
         return (BlendSeg.blender_mesh_name in bpy.data.objects and
                 context.mode == 'OBJECT')
+
+class BlendSegCleanupOperator (bpy.types.Operator):
+    """ Cleanup the existing BlendSeg instance, if it exists.
+    """
+    bl_idname = "object.cleanblendseg"
+    bl_label = "Cleanup BlendSeg"
+    
+    def execute(self, context):
+        """ Cleanup the existing BlendSeg instance.
+        """
+        try:
+            mesh = bpy.data.objects[BlendSeg.blender_mesh_name]
+        except KeyError:
+            print("Couldn't find mesh when running operator: " +
+                  BlendSeg.blender_mesh_name)
+            return {'FINISHED'}
+        
+        bpy.context.scene.objects.active = None
+        mesh.select = False
+        mesh.hide = False
+        
+        print ("Cleaning up BlendSeg!")
+        BlendSeg._cleanup()
+        return {'FINISHED'}
+    
+    @classmethod
+    def poll(cls, context):
+        """ Only run if BlendSeg instance has been instantiated.
+        """
+        return BlendSeg.has_instance()
+
     
 class BlendSeg (object):
     """ Compute and render the intersections of a mesh.
@@ -79,6 +187,10 @@ class BlendSeg (object):
     axi_prefix = "axial/"+letter+"axi"
     sag_prefix = "sagittal/"+letter+"sag"
     cor_prefix = "coronal/"+letter+"cor"
+
+    axi_dir_root = image_dir + axi_prefix
+    cor_dir_root = image_dir + cor_prefix
+    sag_dir_root = image_dir + sag_prefix
 
     axi_files = sorted(glob.glob (image_dir + axi_prefix + image_ext))
     sag_files = sorted(glob.glob (image_dir + sag_prefix + image_ext))
@@ -124,6 +236,13 @@ class BlendSeg (object):
             cls.__instance.remove_and_cleanup()
             del cls.__instance
             cls.__instance = None
+
+    @classmethod
+    def has_instance(cls):
+        """ Check if BlendSeg instance exists.
+        Return true if __instance is not None, false otherwise.
+        """
+        return BlendSeg.__instance is not None
     
     def __init__(self):
         pass
@@ -142,11 +261,13 @@ class BlendSeg (object):
     def unregister_callback(self):
         """ Remove the contour-update callbacks in Blender.
         """
-        bpy.app.handlers.scene_update_post.remove(
-            self.scene_update_callback)
+        if self.scene_update_callback in bpy.app.handlers.scene_update_post:
+            bpy.app.handlers.scene_update_post.remove(
+                self.scene_update_callback)
         #if self.is_interactive:
-        bpy.app.handlers.scene_update_pre.remove(
-            self.scene_update_contour_callback)
+        if self.scene_update_contour_callback in bpy.app.handlers.scene_update_pre:
+            bpy.app.handlers.scene_update_pre.remove(
+                self.scene_update_contour_callback)
 
     def remove_and_cleanup(self):
         """ Delete all planes, images, and loops associated with
@@ -167,8 +288,8 @@ class BlendSeg (object):
             return
         
         bpy.context.scene.objects.active = mesh
-        mesh.select = True
-        mesh.hide = False
+        # mesh.select = True
+        # mesh.hide = False
         if not bpy.ops.object.mode_set.poll():
             print("Failed to set mode to object.")
             return
@@ -200,8 +321,9 @@ class BlendSeg (object):
         except KeyError:
             #print(self.mesh_qem.blender_name + " wasn't found!")
             return
-        
-        if mesh.is_updated:
+
+        # TODO: if mesh is visible, don't update
+        if mesh.is_updated: # and mesh.hide:
             if BlendSeg.show_timing_msgs:
                 print(self.mesh_qem.blender_name + " was updated!!")
             self.mesh_qem.is_updated = True
@@ -225,8 +347,8 @@ class BlendSeg (object):
             #print(self.mesh_qem.blender_name + " wasn't found!")
             return
 
-        # Does this cause crash?
-        # if mesh.hide_select:
+        # Don't bother updating contour if mesh is visible.
+        # if not mesh.hide:
         #     return
         
         self.is_updating = True
@@ -236,6 +358,10 @@ class BlendSeg (object):
         old_position = Vector(scene.cursor_location)
         scene.cursor_location = Vector((0., 0., 0.))
 
+        bpy.context.scene.objects.active = None
+        mesh.select = False
+        mesh.hide = False
+        
         if BlendSeg.show_timing_msgs:
             print("Updating all contours...")
             start = time()
@@ -285,6 +411,10 @@ class BlendSeg (object):
         # Create a new object to hold the contours
         if (bpy.ops.object.mode_set.poll()):
             bpy.ops.object.mode_set(mode='OBJECT')
+        else:
+            print("Couldn't set OBJECT mode!")
+            return
+
         bpy.ops.object.add(type='MESH')
         loop = bpy.context.object
         loop.name = self.axi_plane.loop_name
@@ -298,7 +428,14 @@ class BlendSeg (object):
         loop.name = self.cor_plane.loop_name
 
     def update_all_intersections (self, mesh):
-        mesh.hide = False
+        # Is this causing a crash??
+        # mesh.select = False
+        
+        # mesh.hide = True
+        print ("")
+        print ("mesh.hide: " + str(mesh.hide))
+        print ("mesh.select: " + str(mesh.select))
+        print ("active_object: " + str(bpy.context.active_object))
         """ Attempt to find our planes """
         try:
             sp = bpy.data.objects[self.sag_plane.plane_name]
@@ -308,6 +445,7 @@ class BlendSeg (object):
             print("Warning! Can't find all planes by name...")
             return
 
+        print ("A")
         # Generate CMesh objects for planes, mesh
         if self.mesh_qem is None:
             if BlendSeg.show_timing_msgs:
@@ -321,7 +459,7 @@ class BlendSeg (object):
             if BlendSeg.show_timing_msgs:
                 seconds = time() - start
                 print("Took %1.5f seconds" % seconds)
-
+        print ("B")
         # Call this to update matrix_world
         if self.mesh_tree is None:
             if BlendSeg.show_timing_msgs:
@@ -347,7 +485,8 @@ class BlendSeg (object):
             if BlendSeg.show_timing_msgs:
                 seconds = time() - start
                 print("Took %1.5f seconds" % seconds)
-            
+
+        print ("C")
         if BlendSeg.show_timing_msgs:
             print("  Refreshing vertex positions")
         start = time()
@@ -363,6 +502,7 @@ class BlendSeg (object):
             seconds = time() - start
             print("  Took %1.5f seconds" % (seconds))
 
+        print ("D")
         if BlendSeg.show_timing_msgs:
             print("  Refreshing bounding box positions")
             start = time()
@@ -374,7 +514,8 @@ class BlendSeg (object):
         if BlendSeg.show_timing_msgs:
             seconds = time() - start
             print("  Took %1.5f seconds" % (seconds))
-        
+
+        print ("E")
         if BlendSeg.show_timing_msgs:
             print("  Refreshing aabb trees to see how fast...")
             start = time()
@@ -382,13 +523,13 @@ class BlendSeg (object):
         self.ap_tree.update_bbs()
         self.cp_tree.update_bbs()
         if self.mesh_qem.is_updated:
-            #self.mesh_tree.update_bbs()
-            self.mesh_tree.update_bbs_mt()
+            self.mesh_tree.update_bbs()
+            # self.mesh_tree.update_bbs_mt()
         if BlendSeg.show_timing_msgs:
             seconds = time() - start
             print("  Took %1.5f seconds" % (seconds))
 
-        gc.disable()
+        print ("F")
         if not sp.hide and (self.sag_plane.is_updated or self.mesh_qem.is_updated):
             if BlendSeg.show_timing_msgs:
                 print("  Computing sagittal intersection...")
@@ -443,9 +584,7 @@ class BlendSeg (object):
             except KeyError:
                 loop3 = None
 
-
-        gc.enable()
-        
+        print ("G")
         # These need to be hidden/shown after the all computations
         if not sp.hide and loop1:
             loop1.select = True
@@ -454,14 +593,13 @@ class BlendSeg (object):
         if not cp.hide and loop3:
             loop3.select = True
 
-        if False:
-            bpy.data.scenes[0].update()
-
-        bpy.context.scene.objects.active = mesh
-        mesh.select = True
-        bpy.ops.object.mode_set(mode='SCULPT')
+        # bpy.context.scene.objects.active = mesh
+        # mesh.select = True
+        # bpy.ops.object.mode_set(mode='SCULPT')
         
-        mesh.hide = True
+        # mesh.hide = True
+
+        print ("H")
         
     def compute_intersection_qem (self, scene,
                                   sl_plane,
@@ -516,6 +654,9 @@ class BlendSeg (object):
         # Create a new object to hold the contours
         if bpy.ops.object.mode_set.poll():
             bpy.ops.object.mode_set(mode='OBJECT')
+        else:
+            print("Couldn't set OBJECT mode!")
+            return
         bpy.ops.object.add(type='MESH')
         loop = bpy.context.object
         loop.name = loop_name
@@ -553,6 +694,8 @@ class BlendSeg (object):
 def register():
     """Register Blendseg Operator with blender"""
     bpy.utils.register_class(BlendSegOperator)
+    bpy.utils.register_class(BlendSegCleanupOperator)
+    bpy.utils.register_class(BreakBlendSegOperator)
 
 # For convenience, register ths when imported
 register()

@@ -54,6 +54,38 @@ class BlendSegOperator (bpy.types.Operator):
         """ Only run if an object named 'Mesh' exists """
         return (BlendSeg.blender_mesh_name in bpy.data.objects and
                 context.mode == 'OBJECT')
+
+class BlendSegCleanupOperator (bpy.types.Operator):
+    """ Cleanup the existing BlendSeg instance, if it exists.
+    """
+    bl_idname = "object.cleanblendseg"
+    bl_label = "Cleanup BlendSeg"
+    
+    def execute(self, context):
+        """ Cleanup the existing BlendSeg instance.
+        """
+        try:
+            mesh = bpy.data.objects[BlendSeg.blender_mesh_name]
+        except KeyError:
+            print("Couldn't find mesh when running operator: " +
+                  BlendSeg.blender_mesh_name)
+            return {'FINISHED'}
+        
+        bpy.context.scene.objects.active = None
+        mesh.select = False
+        mesh.hide = False
+        
+        print ("Cleaning up BlendSeg!")
+        BlendSeg._cleanup()
+        return {'FINISHED'}
+    
+    @classmethod
+    def poll(cls, context):
+        """ Only run if BlendSeg instance has been instantiated.
+        """
+        return BlendSeg.has_instance()
+
+
     
 class BlendSeg (object):
     """ Compute and render the intersections of a mesh.
@@ -124,6 +156,13 @@ class BlendSeg (object):
             cls.__instance.remove_and_cleanup()
             del cls.__instance
             cls.__instance = None
+
+    @classmethod
+    def has_instance(cls):
+        """ Return True if __instance is not None.
+        False otherwise
+        """
+        return BlendSeg.__instance is not None
     
     def __init__(self):
         pass
@@ -553,6 +592,7 @@ class BlendSeg (object):
 def register():
     """Register Blendseg Operator with blender"""
     bpy.utils.register_class(BlendSegOperator)
+    bpy.utils.register_class(BlendSegCleanupOperator)
 
 # For convenience, register ths when imported
 register()

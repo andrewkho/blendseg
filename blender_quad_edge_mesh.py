@@ -17,9 +17,11 @@ class BlenderQEMeshBuilder(object):
         """
         #if type(blender_object) is not bpy.blender.something
 
-        # Call this twice
+        # Call this twice or else Blender will hard crash!
+        # as of version 2.68
         blender_object.data.calc_tessface()
         blender_object.data.calc_tessface()
+
         bqem = BlenderQEMesh(blender_object)
 
         vidx_counter = 0

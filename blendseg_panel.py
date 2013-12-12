@@ -1,20 +1,18 @@
 import bpy
-from . import blendseg
+from .blendseg import BlendSeg
 
-
-
-def fget(self):
-    """Distance from origin"""
-    loc = self.location    
-    distance = loc.length
-    return distance 
+# def fget(self):
+#     """Distance from origin"""
+#     loc = self.location    
+#     distance = loc.length
+#     return distance 
  
-def fset(self, value):
-    if self.location.length < 1E-6:
-        self.location = [1, 0, 0]
-    self.location.length = value
+# def fset(self, value):
+#     if self.location.length < 1E-6:
+#         self.location = [1, 0, 0]
+#     self.location.length = value
  
-bpy.types.Object.distance = property(fget, fset)
+# bpy.types.Object.distance = property(fget, fset)
  
 # ob = bpy.context.active_object
 # if (ob is not None):
@@ -29,7 +27,13 @@ class BlendSegPanel (bpy.types.Panel):
     bl_label = "BlendSeg"
  
     def draw(self, context):
+        self.layout.operator("object.blendseg",
+                             "Execute BlendSeg")
+        self.layout.operator("object.cleanblendseg",
+                             "Cleanup BlendSeg")
         # display "distance" of the active object
-        self.layout.label(text=str(bpy.context.active_object.distance))
+        # self.layout.label(text=str(bpy.context.active_object.distance))
+
+        
  
 bpy.utils.register_class(BlendSegPanel)

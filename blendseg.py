@@ -28,52 +28,87 @@ class BreakBlendSegOperator (bpy.types.Operator):
 
     def execute(self, context):
         print ("Breaking...")
-        # Save cursor position and move to origin
-        # This will fix the position of the contours in Blender v2.68
-        old_position = Vector(context.scene.cursor_location)
-        context.scene.cursor_location = Vector((0., 0., 0.))
-        
-        start = time()
-        bs = BlendSeg()
 
+        # Load image
+        fname = "/home/andrew/workspace/imageBlowup/Atiff/axial/Aaxi0256.tif"
+        img_name = image_utils.load_image(fname).name
+        img = bpy.data.images[img_name]
+
+        # Create texture
+        texture = bpy.data.textures.new(name="Aaxi0256", type='IMAGE')
+        texture.image=img
+
+        # Create material
+        material = bpy.data.materials.new(name="AXImat")
+        slot = material.texture_slots.add()
+        slot.texture = texture
+        slot.texture_coords = 'UV'
+        material.use_shadeless = True
+        material.game_settings.use_backface_culling = False
+
+        # Create a mesh for the plane
+        verts=[]
+        verts.append((1.0, -1.0, 0.0))
+        verts.append((-1.0, -1.0, 0.0))
+        verts.append((1.0, 1.0, 0.0))
+        verts.append((-1.0, 1.0, 0.0))
+
+        edges=[]
+        edges.append((0,1))
+        edges.append((2,3))
+        edges.append((3,1))
+        edges.append((0,2))
+
+        faces=[]
+        faces.append((2,3,1,0))
+                     
+        meshplane = bpy.data.meshes.new("AXIplane")
+        meshplane.from_pydata(verts, edges, faces)
+        meshplane.name = "AXIplane"
+
+        plane = bpy.data.objects.new(meshplane.name, meshplane)
+        bpy.context.scene.objects.link(plane)
+
+        # Tell the plane to use the material and texture we created
+        plane.data.materials.append(material)
+        plane.data.uv_textures.new()
+        plane.data.uv_textures[0].data[0].image = \
+            material.texture_slots[0].texture.image
+        
         try:
-            mesh = bpy.data.objects[BlendSeg.blender_mesh_name]
+            mesh = bpy.data.objects['Mesh']
         except KeyError:
             print("Couldn't find mesh when running operator: " +
                   BlendSeg.blender_mesh_name)
-            return {'FINISHED'}
+        else:
+            mesh.data.calc_tessface()
+            mesh.data.calc_tessface()
+            
         
-        bs.is_updating = True
-        bs.update_all_intersections(mesh)
-        bs.is_updating = False
-        
-        seconds = time() - start
-        print("Took %1.5f seconds." % seconds)
-
-        # Return cursor position to where it was before calling execute
-        #context.scene.cursor_location = old_position
         return {'FINISHED'}
 
     def invoke(self, context, event):
         # wm = context.window_manager
         # return wm.invoke_props_dialog(self)
-        try:
-            mesh = bpy.data.objects[BlendSeg.blender_mesh_name]
-        except KeyError:
-            print("Couldn't find mesh when running operator: " +
-                  BlendSeg.blender_mesh_name)
-            return {'FINISHED'}
+        # try:
+        #     mesh = bpy.data.objects[BlendSeg.blender_mesh_name]
+        # except KeyError:
+        #     print("Couldn't find mesh when running operator: " +
+        #           BlendSeg.blender_mesh_name)
+        #     return {'FINISHED'}
         
-        mesh.hide = False
-        mesh.select = False
-        
+        # mesh.hide = False
+        # mesh.select = False
+       
         return self.execute(context)
 
     @classmethod
     def poll(cls, context):
         """ Only run if an object named 'Mesh' exists """
-        return (BlendSeg.blender_mesh_name in bpy.data.objects and
-                context.mode == 'OBJECT')
+        # return (BlendSeg.blender_mesh_name in bpy.data.objects and
+        #         context.mode == 'OBJECT')
+        return context.mode == 'OBJECT'
+    
 
 class BlendSegOperator (bpy.types.Operator):
     bl_idname = "object.blendseg"
@@ -220,11 +255,11 @@ class BlendSeg (object):
             BlendSeg.__instance = super(BlendSeg, cls).__new__(cls)
             BlendSeg.__instance.load_img_stacks()
             BlendSeg.__instance.create_planes()
-            BlendSeg.__instance.mesh_qem = None
-            BlendSeg.__instance.mesh_tree = None
-            BlendSeg.__instance.is_updating = False
+            # BlendSeg.__instance.mesh_qem = None
+            # BlendSeg.__instance.mesh_tree = None
+            # BlendSeg.__instance.is_updating = False
             
-            BlendSeg.__instance.register_callback()
+            # BlendSeg.__instance.register_callback()
 
         return BlendSeg.__instance
 
@@ -401,36 +436,36 @@ class BlendSeg (object):
         self.axi_plane = slice_plane.SlicePlane (
             'AXIAL', self.image_origin,
             self.axi_imgs, BlendSeg.image_spacing)
-        self.sag_plane = slice_plane.SlicePlane (
-            'SAGITTAL', self.image_origin,
-            self.sag_imgs, BlendSeg.image_spacing)
-        self.cor_plane = slice_plane.SlicePlane (
-            'CORONAL', self.image_origin,
-            self.cor_imgs, BlendSeg.image_spacing)
+        # self.sag_plane = slice_plane.SlicePlane (
+        #     'SAGITTAL', self.image_origin,
+        #     self.sag_imgs, BlendSeg.image_spacing)
+        # self.cor_plane = slice_plane.SlicePlane (
+        #     'CORONAL', self.image_origin,
+        #     self.cor_imgs, BlendSeg.image_spacing)
         
         # Create a new object to hold the contours
-        if (bpy.ops.object.mode_set.poll()):
-            bpy.ops.object.mode_set(mode='OBJECT')
-        else:
-            print("Couldn't set OBJECT mode!")
-            return
+        # if (bpy.ops.object.mode_set.poll()):
+        #     bpy.ops.object.mode_set(mode='OBJECT')
+        # else:
+        #     print("Couldn't set OBJECT mode!")
+        #     return
 
-        bpy.ops.object.add(type='MESH')
-        loop = bpy.context.object
-        loop.name = self.axi_plane.loop_name
+        # bpy.ops.object.add(type='MESH')
+        # loop = bpy.context.object
+        # loop.name = self.axi_plane.loop_name
         
-        bpy.ops.object.add(type='MESH')
-        loop = bpy.context.object
-        loop.name = self.sag_plane.loop_name
+        # bpy.ops.object.add(type='MESH')
+        # loop = bpy.context.object
+        # loop.name = self.sag_plane.loop_name
         
-        bpy.ops.object.add(type='MESH')
-        loop = bpy.context.object
-        loop.name = self.cor_plane.loop_name
+        # bpy.ops.object.add(type='MESH')
+        # loop = bpy.context.object
+        # loop.name = self.cor_plane.loop_name
 
     def update_all_intersections (self, mesh):
         # Is this causing a crash??
         # mesh.select = False
-        
+        return
         # mesh.hide = True
         print ("")
         print ("mesh.hide: " + str(mesh.hide))
@@ -451,15 +486,23 @@ class BlendSeg (object):
             if BlendSeg.show_timing_msgs:
                 print("Generating Quad-Edge Meshes")
                 start = time()
-            self.sp_qem = BlenderQEMeshBuilder.construct_from_blender_object(sp)
-            self.ap_qem = BlenderQEMeshBuilder.construct_from_blender_object(ap)
-            self.cp_qem = BlenderQEMeshBuilder.construct_from_blender_object(cp)
-            self.mesh_qem = BlenderQEMeshBuilder.construct_from_blender_object(mesh)
-            self.mesh_qem.is_rigid = False
+            # print ("Aa")
+            # self.sp_qem = BlenderQEMeshBuilder.construct_from_blender_object(sp)
+            # print ("Ab")
+            # self.ap_qem = BlenderQEMeshBuilder.construct_from_blender_object(ap)
+            # print ("Ac")
+            # self.cp_qem = BlenderQEMeshBuilder.construct_from_blender_object(cp)
+            # print("Ad")
+            # self.mesh_qem = BlenderQEMeshBuilder.construct_from_blender_object(mesh)
+            mesh.data.calc_tessface()
+            # self.mesh_qem.is_rigid = False
             if BlendSeg.show_timing_msgs:
                 seconds = time() - start
                 print("Took %1.5f seconds" % seconds)
         print ("B")
+        
+        return
+    
         # Call this to update matrix_world
         if self.mesh_tree is None:
             if BlendSeg.show_timing_msgs:
@@ -501,7 +544,7 @@ class BlendSeg (object):
         if BlendSeg.show_timing_msgs:
             seconds = time() - start
             print("  Took %1.5f seconds" % (seconds))
-
+            
         print ("D")
         if BlendSeg.show_timing_msgs:
             print("  Refreshing bounding box positions")

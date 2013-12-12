@@ -95,7 +95,7 @@ class SlicePlane (object):
         self.is_updated = False
             
         plane = self.create_plane()
-        self.update_image(plane)
+        # self.update_image(plane)
 
     def enforce_location (self, plane):
         """ This method modifies the position of the given plane object
@@ -316,9 +316,9 @@ class SlicePlane (object):
         plane.data.uv_textures[0].data[0].image = \
             mat.texture_slots[0].texture.image
 
-        plane.location = Vector (self.origin)
+        # plane.location = Vector (self.origin)
 
-        self.register_callback()
+        # self.register_callback()
 
         return plane
 
@@ -335,7 +335,7 @@ class SlicePlane (object):
                     fn_tex_full = os.path.normpath(bpy.path.abspath(tex_img.filepath))
                     #assert (fn_full != fn_tex_full)
                     if (fn_full == fn_tex_full): 
-                       return texture
+                        return texture
 
         # if no texture is found: create one
         name_compat = bpy.path.display_name_from_filepath(image.filepath)

@@ -17,6 +17,8 @@ class BlenderQEMeshBuilder(object):
         """
         #if type(blender_object) is not bpy.blender.something
 
+        # Call this twice
+        blender_object.data.calc_tessface()
         blender_object.data.calc_tessface()
         bqem = BlenderQEMesh(blender_object)
 

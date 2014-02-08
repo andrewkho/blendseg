@@ -104,7 +104,7 @@ class BlendSeg (object):
     corresponding to the 3 principal directions. DICOM is not supported.
     """
     
-    letter = "G"
+    letter = "C"
 
     image_dir = "/home/andrew/workspace/imageBlowup/"+letter+"tiff/"
     image_ext = "*.tif"
@@ -163,6 +163,27 @@ class BlendSeg (object):
         False otherwise
         """
         return BlendSeg.__instance is not None
+
+    @classmethod
+    def change_letter(cls, letter):
+        """ Change the letter of the images to load.
+        """
+        if cls.__instance is not None:
+            print ("instance of BlendSeg already exists.")
+            return
+        
+        cls.letter = letter
+
+        cls.image_dir = "/home/andrew/workspace/imageBlowup/"+cls.letter+"tiff/"
+        cls.image_ext = "*.tif"
+        cls.axi_prefix = "axial/"+cls.letter+"axi"
+        cls.sag_prefix = "sagittal/"+cls.letter+"sag"
+        cls.cor_prefix = "coronal/"+cls.letter+"cor"
+        
+        cls.axi_files = sorted(glob.glob (cls.image_dir + cls.axi_prefix + cls.image_ext))
+        cls.sag_files = sorted(glob.glob (cls.image_dir + cls.sag_prefix + cls.image_ext))
+        cls.cor_files = sorted(glob.glob (cls.image_dir + cls.cor_prefix + cls.image_ext))
+        
     
     def __init__(self):
         pass

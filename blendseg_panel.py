@@ -1,5 +1,5 @@
 import bpy
-from .blendseg import BlendSeg
+# from .blendseg import BlendSeg
 
 # def fget(self):
 #     """Distance from origin"""
@@ -36,4 +36,4 @@ class BlendSegPanel (bpy.types.Panel):
 
         
  
-bpy.utils.register_class(BlendSegPanel)
+

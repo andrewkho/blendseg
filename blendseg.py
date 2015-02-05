@@ -26,6 +26,10 @@ from .quad_edge_mesh.aabb_tree import AABBTree
 class BlendSegOperator (bpy.types.Operator):
     bl_idname = "object.blendseg"
     bl_label = "Blendseg Operator"
+
+    mesh_name = "Mesh"
+    #bpy.props.StringProperty(name="Mesh Name", default="Mesh")
+    blendseg_instance = None
     
     def execute(self, context):
         print("Executing...")
@@ -33,14 +37,20 @@ class BlendSegOperator (bpy.types.Operator):
         # This will fix the position of the contours in Blender v2.68
         old_position = Vector(context.scene.cursor_location)
         context.scene.cursor_location = Vector((0., 0., 0.))
-        
         start = time()
-        bs = BlendSeg()
-        mesh = bpy.data.objects[BlendSeg.blender_mesh_name]
 
-        bs.is_updating = True
-        bs.update_all_intersections(mesh)
-        bs.is_updating = False
+        # ugly, but temporary
+        
+
+        # blendseg_instance needs to qualified *explicitly* 
+        # the first time, otherwise a member variable is
+        # created instead, masking the static class var
+        BlendSegOperator.blendseg_instance = BlendSeg(self.mesh_name)
+        mesh = bpy.data.objects[self.mesh_name]
+
+        self.blendseg_instance.is_updating = True
+        self.blendseg_instance.update_all_intersections(mesh)
+        self.blendseg_instance.is_updating = False
         
         seconds = time() - start
         print("Took %1.5f seconds." % seconds)
@@ -52,8 +62,9 @@ class BlendSegOperator (bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         """ Only run if an object named 'Mesh' exists """
-        return (BlendSeg.blender_mesh_name in bpy.data.objects and
-                context.mode == 'OBJECT')
+        return (cls.mesh_name in bpy.data.objects and
+                context.mode == 'OBJECT' and
+                cls.blendseg_instance == None)
 
 class BlendSegCleanupOperator (bpy.types.Operator):
     """ Cleanup the existing BlendSeg instance, if it exists.
@@ -65,10 +76,11 @@ class BlendSegCleanupOperator (bpy.types.Operator):
         """ Cleanup the existing BlendSeg instance.
         """
         try:
-            mesh = bpy.data.objects[BlendSeg.blender_mesh_name]
+            mesh = bpy.data.objects[
+                BlendSegOperator.blendseg_instance.blender_mesh_name]
         except KeyError:
             print("Couldn't find mesh when running operator: " +
-                  BlendSeg.blender_mesh_name)
+                  BlendSegOperator.blendseg_instance.blender_mesh_name)
             return {'FINISHED'}
         
         bpy.context.scene.objects.active = None
@@ -76,14 +88,15 @@ class BlendSegCleanupOperator (bpy.types.Operator):
         mesh.hide = False
         
         print ("Cleaning up BlendSeg!")
-        BlendSeg._cleanup()
+        BlendSegOperator.blendseg_instance.remove_and_cleanup()
+        BlendSegOperator.blendseg_instance = None
         return {'FINISHED'}
     
     @classmethod
     def poll(cls, context):
         """ Only run if BlendSeg instance has been instantiated.
         """
-        return BlendSeg.has_instance()
+        return BlendSegOperator.blendseg_instance != None
 
 
     
@@ -103,90 +116,44 @@ class BlendSeg (object):
     slices, and store them as textures. Three planes are created
     corresponding to the 3 principal directions. DICOM is not supported.
     """
-    
-    letter = "C"
 
-    image_dir = "/home/andrew/workspace/imageBlowup/"+letter+"tiff/"
-    image_ext = "*.tif"
-    axi_prefix = "axial/"+letter+"axi"
-    sag_prefix = "sagittal/"+letter+"sag"
-    cor_prefix = "coronal/"+letter+"cor"
+    def __init__(self,
+                 mesh_name,
+                 image_dir,
+                 image_ext,
+                 axi_prefix,
+                 sag_prefix,
+                 cor_prefix,
+                 image_origin,
+                 image_spacing):
+        #pass
+        letter = "A"
 
-    axi_files = sorted(glob.glob (image_dir + axi_prefix + image_ext))
-    sag_files = sorted(glob.glob (image_dir + sag_prefix + image_ext))
-    cor_files = sorted(glob.glob (image_dir + cor_prefix + image_ext))
+        image_dir = "/home/andrew/workspace/imageBlowup/"+letter+"tiff/"
+        image_ext = "*.tif"
+        axi_prefix = "axial/"+letter+"axi"
+        sag_prefix = "sagittal/"+letter+"sag"
+        cor_prefix = "coronal/"+letter+"cor"
 
-    #axi_files = ['/home/andrew/workspace/imageBlowup/Atiff/axial/Aaxi0160.tif']
-    #sag_files = ['/home/andrew/workspace/imageBlowup/Atiff/sagittal/Asag0256.tif']
-    #cor_files = ['/home/andrew/workspace/imageBlowup/Atiff/coronal/Acor0256.tif']
+        self.axi_files = sorted(glob.glob (image_dir + axi_prefix + image_ext))
+        self.sag_files = sorted(glob.glob (image_dir + sag_prefix + image_ext))
+        self.cor_files = sorted(glob.glob (image_dir + cor_prefix + image_ext))
+        image_origin = tuple([0.,21.5,-51])
+        image_spacing = tuple([0.468,0.468,0.5])
 
-    #image_origin = tuple([239.616/2,239.616/2,0.])
-    image_origin = tuple([0.,21.5,-51])
-    image_spacing = tuple([0.468,0.468,0.5])
 
-    show_timing_msgs = False
+        self.blender_mesh_name = mesh_name
+        self.show_timing_msgs = False
 
-    blender_mesh_name = "Mesh"
-
-    __instance = None
-    def __new__(cls):
-        """ Get existing BlendSeg instance, or create a new
-        one if it doesn't exist.
-        """
-
-        if BlendSeg.__instance is None:
-            if BlendSeg.show_timing_msgs:
-                print("Initializing BlendSeg")
-            BlendSeg.__instance = super(BlendSeg, cls).__new__(cls)
-            BlendSeg.__instance.load_img_stacks()
-            BlendSeg.__instance.create_planes()
-            BlendSeg.__instance.mesh_qem = None
-            BlendSeg.__instance.mesh_tree = None
-            BlendSeg.__instance.is_updating = False
-            
-            BlendSeg.__instance.register_callback()
-
-        return BlendSeg.__instance
-
-    @classmethod
-    def _cleanup(cls):
-        """ Delete the existing instance.
-        """
-        if cls.__instance is not None:
-            cls.__instance.remove_and_cleanup()
-            del cls.__instance
-            cls.__instance = None
-
-    @classmethod
-    def has_instance(cls):
-        """ Return True if __instance is not None.
-        False otherwise
-        """
-        return BlendSeg.__instance is not None
-
-    @classmethod
-    def change_letter(cls, letter):
-        """ Change the letter of the images to load.
-        """
-        if cls.__instance is not None:
-            print ("instance of BlendSeg already exists.")
-            return
+        print("Initializing BlendSeg")
+        print ("Looking for " + letter + " image sequence")
+        self.load_img_stacks()
+        self.create_planes(image_origin, image_spacing)
+        self.mesh_qem = None
+        self.mesh_tree = None
+        self.is_updating = False
+        self.register_callback()
         
-        cls.letter = letter
-
-        cls.image_dir = "/home/andrew/workspace/imageBlowup/"+cls.letter+"tiff/"
-        cls.image_ext = "*.tif"
-        cls.axi_prefix = "axial/"+cls.letter+"axi"
-        cls.sag_prefix = "sagittal/"+cls.letter+"sag"
-        cls.cor_prefix = "coronal/"+cls.letter+"cor"
-        
-        cls.axi_files = sorted(glob.glob (cls.image_dir + cls.axi_prefix + cls.image_ext))
-        cls.sag_files = sorted(glob.glob (cls.image_dir + cls.sag_prefix + cls.image_ext))
-        cls.cor_files = sorted(glob.glob (cls.image_dir + cls.cor_prefix + cls.image_ext))
-        
-    
-    def __init__(self):
-        pass
         #bpy.app.handlers.scene_update_post.clear()
         # bpy.app.handlers.scene_update_pre.append(self.scene_update_callback)
 
@@ -220,9 +187,9 @@ class BlendSeg (object):
 
         try:
             mesh = bpy.context.scene.objects[
-                BlendSeg.blender_mesh_name]
+                self.blender_mesh_name]
         except KeyError:
-            print(BlendSeg.blender_mesh_name +
+            print(self.blender_mesh_name +
                   " wasn't found during remove and cleanup!")
             return
         
@@ -262,7 +229,7 @@ class BlendSeg (object):
             return
         
         if mesh.is_updated:
-            if BlendSeg.show_timing_msgs:
+            if self.show_timing_msgs:
                 print(self.mesh_qem.blender_name + " was updated!!")
             self.mesh_qem.is_updated = True
             
@@ -296,11 +263,11 @@ class BlendSeg (object):
         old_position = Vector(scene.cursor_location)
         scene.cursor_location = Vector((0., 0., 0.))
 
-        if BlendSeg.show_timing_msgs:
+        if self.show_timing_msgs:
             print("Updating all contours...")
             start = time()
         self.update_all_intersections(mesh)
-        if BlendSeg.show_timing_msgs:
+        if self.show_timing_msgs:
             seconds = time() - start
             print("Took %1.5f seconds" % seconds)
         
@@ -314,10 +281,9 @@ class BlendSeg (object):
         self.mesh_qem.is_updated = False
 
     def load_img_stacks(self):
-        print ("Looking for " + BlendSeg.letter + " image sequence")
-        axi_files = BlendSeg.axi_files
-        sag_files = BlendSeg.sag_files
-        cor_files = BlendSeg.cor_files
+        axi_files = self.axi_files
+        sag_files = self.sag_files
+        cor_files = self.cor_files
 
         try:
             self.axi_imgs = [image_utils.load_image(f).name for f in axi_files]
@@ -331,16 +297,16 @@ class BlendSeg (object):
         print ("Loaded " + str(len(self.sag_imgs)) + " sagittal images!")
         print ("Loaded " + str(len(self.cor_imgs)) + " coronal images!")
         
-    def create_planes(self):
+    def create_planes(self, image_origin, image_spacing):
         self.axi_plane = slice_plane.SlicePlane (
-            'AXIAL', self.image_origin,
-            self.axi_imgs, BlendSeg.image_spacing)
+            'AXIAL', image_origin,
+            self.axi_imgs, image_spacing)
         self.sag_plane = slice_plane.SlicePlane (
-            'SAGITTAL', self.image_origin,
-            self.sag_imgs, BlendSeg.image_spacing)
+            'SAGITTAL', image_origin,
+            self.sag_imgs, image_spacing)
         self.cor_plane = slice_plane.SlicePlane (
-            'CORONAL', self.image_origin,
-            self.cor_imgs, BlendSeg.image_spacing)
+            'CORONAL', image_origin,
+            self.cor_imgs, image_spacing)
         
         # Create a new object to hold the contours
         if (bpy.ops.object.mode_set.poll()):
@@ -370,7 +336,7 @@ class BlendSeg (object):
 
         # Generate CMesh objects for planes, mesh
         if self.mesh_qem is None:
-            if BlendSeg.show_timing_msgs:
+            if self.show_timing_msgs:
                 print("Generating Quad-Edge Meshes")
                 start = time()
             self.sp_qem = BlenderQEMeshBuilder.construct_from_blender_object(sp)
@@ -378,13 +344,13 @@ class BlendSeg (object):
             self.cp_qem = BlenderQEMeshBuilder.construct_from_blender_object(cp)
             self.mesh_qem = BlenderQEMeshBuilder.construct_from_blender_object(mesh)
             self.mesh_qem.is_rigid = False
-            if BlendSeg.show_timing_msgs:
+            if self.show_timing_msgs:
                 seconds = time() - start
                 print("Took %1.5f seconds" % seconds)
 
         # Call this to update matrix_world
         if self.mesh_tree is None:
-            if BlendSeg.show_timing_msgs:
+            if self.show_timing_msgs:
                 print("Generating AABB Trees")
                 start = time()
             self.sp_tree = AABBTree(self.sp_qem)
@@ -404,26 +370,26 @@ class BlendSeg (object):
             self.mesh_tree.update_bbs()
             #self.mesh_tree.update_bbs_mt()
             
-            if BlendSeg.show_timing_msgs:
+            if self.show_timing_msgs:
                 seconds = time() - start
                 print("Took %1.5f seconds" % seconds)
             
-        if BlendSeg.show_timing_msgs:
+        if self.show_timing_msgs:
             print("  Refreshing vertex positions")
         start = time()
         self.sp_qem.update_vertex_positions()
         self.ap_qem.update_vertex_positions()
         self.cp_qem.update_vertex_positions()
         if self.mesh_qem.is_updated:
-            if BlendSeg.show_timing_msgs:
+            if self.show_timing_msgs:
                 print("updating mesh_qem!")
             self.mesh_qem.update_vertex_positions()
         #self.mesh_qem.update_vertex_positions_mt()
-        if BlendSeg.show_timing_msgs:
+        if self.show_timing_msgs:
             seconds = time() - start
             print("  Took %1.5f seconds" % (seconds))
 
-        if BlendSeg.show_timing_msgs:
+        if self.show_timing_msgs:
             print("  Refreshing bounding box positions")
             start = time()
         self.sp_qem.update_bounding_boxes()
@@ -431,11 +397,11 @@ class BlendSeg (object):
         self.cp_qem.update_bounding_boxes()
         if self.mesh_qem.is_updated:
             self.mesh_qem.update_bounding_boxes()
-        if BlendSeg.show_timing_msgs:
+        if self.show_timing_msgs:
             seconds = time() - start
             print("  Took %1.5f seconds" % (seconds))
         
-        if BlendSeg.show_timing_msgs:
+        if self.show_timing_msgs:
             print("  Refreshing aabb trees to see how fast...")
             start = time()
         self.sp_tree.update_bbs()
@@ -444,13 +410,13 @@ class BlendSeg (object):
         if self.mesh_qem.is_updated:
             #self.mesh_tree.update_bbs()
             self.mesh_tree.update_bbs_mt()
-        if BlendSeg.show_timing_msgs:
+        if self.show_timing_msgs:
             seconds = time() - start
             print("  Took %1.5f seconds" % (seconds))
 
         gc.disable()
         if not sp.hide and (self.sag_plane.is_updated or self.mesh_qem.is_updated):
-            if BlendSeg.show_timing_msgs:
+            if self.show_timing_msgs:
                 print("  Computing sagittal intersection...")
                 start = time()
             loop1 = self.compute_intersection_qem(bpy.context.scene,
@@ -458,7 +424,7 @@ class BlendSeg (object):
                                                   self.sp_qem, self.mesh_qem,
                                                   self.sp_tree, self.mesh_tree,
                                                   self.sag_plane.loop_name)
-            if BlendSeg.show_timing_msgs:
+            if self.show_timing_msgs:
                 seconds = time() - start
                 print("  Took %1.5f seconds" % (seconds))
         else:
@@ -468,7 +434,7 @@ class BlendSeg (object):
                 loop1 = None
 
         if not ap.hide and (self.axi_plane.is_updated or self.mesh_qem.is_updated):
-            if BlendSeg.show_timing_msgs:
+            if self.show_timing_msgs:
                 print("  Computing axial intersection...")
                 start = time()
             loop2 = self.compute_intersection_qem(bpy.context.scene,
@@ -476,7 +442,7 @@ class BlendSeg (object):
                                                   self.ap_qem, self.mesh_qem,
                                                   self.ap_tree, self.mesh_tree,
                                                   self.axi_plane.loop_name)
-            if BlendSeg.show_timing_msgs:
+            if self.show_timing_msgs:
                 seconds = time() - start
                 print("  Took %1.5f seconds" % (seconds))
         else:
@@ -486,7 +452,7 @@ class BlendSeg (object):
                 loop2 = None
 
         if not cp.hide and (self.cor_plane.is_updated or self.mesh_qem.is_updated):
-            if BlendSeg.show_timing_msgs:
+            if self.show_timing_msgs:
                 print("  Computing coronal intersection...")
                 start = time()
             loop3 = self.compute_intersection_qem(bpy.context.scene,
@@ -494,7 +460,7 @@ class BlendSeg (object):
                                                   self.cp_qem, self.mesh_qem,
                                                   self.cp_tree, self.mesh_tree,
                                                   self.cor_plane.loop_name)
-            if BlendSeg.show_timing_msgs:
+            if self.show_timing_msgs:
                 seconds = time() - start
                 print("  Took %1.5f seconds" % (seconds))
         else:
@@ -541,7 +507,7 @@ class BlendSeg (object):
             scene.objects.unlink(loop)
             bpy.data.objects.remove(loop)
 
-        if BlendSeg.show_timing_msgs:
+        if self.show_timing_msgs:
             print("  Searching for ix_points")
             start = time()
         ixer = Intersector()
@@ -550,15 +516,15 @@ class BlendSeg (object):
         ix_contours = ixer.compute_intersection_with_plane(mesh,
                                                            mesh_tree,
                                                            sl_plane)
-        if BlendSeg.show_timing_msgs:
+        if self.show_timing_msgs:
             seconds = time() - start
             print("  Took %1.5f seconds" % seconds)
 
-        if BlendSeg.show_timing_msgs:
+        if self.show_timing_msgs:
             print("  Creating blender contour")
             start = time()
         loop = self._create_blender_contour(ix_contours, loop_name)
-        if BlendSeg.show_timing_msgs:
+        if self.show_timing_msgs:
             seconds = time() - start
             print("  Took %1.5f seconds" % seconds)
         
@@ -610,10 +576,3 @@ class BlendSeg (object):
 
         return loop
 
-def register():
-    """Register Blendseg Operator with blender"""
-    bpy.utils.register_class(BlendSegOperator)
-    bpy.utils.register_class(BlendSegCleanupOperator)
-
-# For convenience, register ths when imported
-register()

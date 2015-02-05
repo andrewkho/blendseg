@@ -31,6 +31,18 @@ class BlendSegOperator (bpy.types.Operator):
     #bpy.props.StringProperty(name="Mesh Name", default="Mesh")
     blendseg_instance = None
     
+    # ugly, but temporary
+    letter = "A"
+    image_dir = "/home/andrew/workspace/imageBlowup/"+letter+"tiff/"
+    image_ext = "*.tif"
+    axi_prefix = "axial/"+letter+"axi"
+    sag_prefix = "sagittal/"+letter+"sag"
+    cor_prefix = "coronal/"+letter+"cor"
+
+    image_origin = tuple([0.,21.5,-51])
+    image_spacing = tuple([0.468,0.468,0.5])
+    show_timing_msgs = False
+
     def execute(self, context):
         print("Executing...")
         # Save cursor position and move to origin
@@ -39,13 +51,18 @@ class BlendSegOperator (bpy.types.Operator):
         context.scene.cursor_location = Vector((0., 0., 0.))
         start = time()
 
-        # ugly, but temporary
-        
-
         # blendseg_instance needs to qualified *explicitly* 
         # the first time, otherwise a member variable is
         # created instead, masking the static class var
-        BlendSegOperator.blendseg_instance = BlendSeg(self.mesh_name)
+        BlendSegOperator.blendseg_instance = BlendSeg(self.mesh_name,
+                                                      self.image_dir,
+                                                      self.image_ext,
+                                                      self.axi_prefix,
+                                                      self.sag_prefix,
+                                                      self.cor_prefix,
+                                                      self.image_origin,
+                                                      self.image_spacing,
+                                                      self.show_timing_msgs)
         mesh = bpy.data.objects[self.mesh_name]
 
         self.blendseg_instance.is_updating = True
@@ -125,28 +142,17 @@ class BlendSeg (object):
                  sag_prefix,
                  cor_prefix,
                  image_origin,
-                 image_spacing):
+                 image_spacing,
+                 show_timing_msgs):
         #pass
-        letter = "A"
-
-        image_dir = "/home/andrew/workspace/imageBlowup/"+letter+"tiff/"
-        image_ext = "*.tif"
-        axi_prefix = "axial/"+letter+"axi"
-        sag_prefix = "sagittal/"+letter+"sag"
-        cor_prefix = "coronal/"+letter+"cor"
-
         self.axi_files = sorted(glob.glob (image_dir + axi_prefix + image_ext))
         self.sag_files = sorted(glob.glob (image_dir + sag_prefix + image_ext))
         self.cor_files = sorted(glob.glob (image_dir + cor_prefix + image_ext))
-        image_origin = tuple([0.,21.5,-51])
-        image_spacing = tuple([0.468,0.468,0.5])
-
 
         self.blender_mesh_name = mesh_name
-        self.show_timing_msgs = False
+        self.show_timing_msgs = show_timing_msgs
 
         print("Initializing BlendSeg")
-        print ("Looking for " + letter + " image sequence")
         self.load_img_stacks()
         self.create_planes(image_origin, image_spacing)
         self.mesh_qem = None

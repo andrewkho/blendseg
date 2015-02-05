@@ -207,7 +207,8 @@ class SlicePlane (object):
         try:
             loop = scene.objects[self.loop_name]
         except KeyError:
-            print(self.loop_name + " wasn't found while trying to delete!")
+            pass
+            #print(self.loop_name + " wasn't found while trying to delete!")
         else:
             scene.objects.unlink(loop)
             bpy.data.objects.remove(loop)

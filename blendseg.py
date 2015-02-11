@@ -6,117 +6,13 @@ from time import time
 
 import bpy
 from bpy_extras import image_utils
-
 from mathutils import Vector
-import imp
 
-from . import slice_plane
-# imp.reload(slice_plane)
-# from . import object_intersection
-# imp.reload(object_intersection)
-# from . import aabb_tree
-# imp.reload(aabb_tree)
-# from . import aabb_directional_tree
-# imp.reload(aabb_directional_tree)
-
+from .slice_plane import SlicePlane
 from .intersector import Intersector
 from .blender_quad_edge_mesh import BlenderQEMeshBuilder
 from .quad_edge_mesh.aabb_tree import AABBTree
 
-class BlendSegOperator (bpy.types.Operator):
-    bl_idname = "object.blendseg"
-    bl_label = "Blendseg Operator"
-
-    mesh_name = "Mesh"
-    #bpy.props.StringProperty(name="Mesh Name", default="Mesh")
-    blendseg_instance = None
-    
-    # ugly, but temporary
-    letter = "A"
-    image_dir = "/home/andrew/workspace/imageBlowup/"+letter+"tiff/"
-    image_ext = "*.tif"
-    axi_prefix = "axial/"+letter+"axi"
-    sag_prefix = "sagittal/"+letter+"sag"
-    cor_prefix = "coronal/"+letter+"cor"
-
-    image_origin = tuple([0.,21.5,-51])
-    image_spacing = tuple([0.468,0.468,0.5])
-    show_timing_msgs = False
-
-    def execute(self, context):
-        print("Executing...")
-        # Save cursor position and move to origin
-        # This will fix the position of the contours in Blender v2.68
-        old_position = Vector(context.scene.cursor_location)
-        context.scene.cursor_location = Vector((0., 0., 0.))
-        start = time()
-
-        # blendseg_instance needs to qualified *explicitly* 
-        # the first time, otherwise a member variable is
-        # created instead, masking the static class var
-        BlendSegOperator.blendseg_instance = BlendSeg(self.mesh_name,
-                                                      self.image_dir,
-                                                      self.image_ext,
-                                                      self.axi_prefix,
-                                                      self.sag_prefix,
-                                                      self.cor_prefix,
-                                                      self.image_origin,
-                                                      self.image_spacing,
-                                                      self.show_timing_msgs)
-        mesh = bpy.data.objects[self.mesh_name]
-
-        self.blendseg_instance.is_updating = True
-        self.blendseg_instance.update_all_intersections(mesh)
-        self.blendseg_instance.is_updating = False
-        
-        seconds = time() - start
-        print("Took %1.5f seconds." % seconds)
-
-        # Return cursor position to where it was before calling execute
-        context.scene.cursor_location = old_position
-        return {'FINISHED'}
-
-    @classmethod
-    def poll(cls, context):
-        """ Only run if an object named 'Mesh' exists """
-        return (cls.mesh_name in bpy.data.objects and
-                context.mode == 'OBJECT' and
-                cls.blendseg_instance == None)
-
-class BlendSegCleanupOperator (bpy.types.Operator):
-    """ Cleanup the existing BlendSeg instance, if it exists.
-    """
-    bl_idname = "object.cleanblendseg"
-    bl_label = "Cleanup BlendSeg"
-    
-    def execute(self, context):
-        """ Cleanup the existing BlendSeg instance.
-        """
-        try:
-            mesh = bpy.data.objects[
-                BlendSegOperator.blendseg_instance.blender_mesh_name]
-        except KeyError:
-            print("Couldn't find mesh when running operator: " +
-                  BlendSegOperator.blendseg_instance.blender_mesh_name)
-            return {'FINISHED'}
-        
-        bpy.context.scene.objects.active = None
-        mesh.select = False
-        mesh.hide = False
-        
-        print ("Cleaning up BlendSeg!")
-        BlendSegOperator.blendseg_instance.remove_and_cleanup()
-        BlendSegOperator.blendseg_instance = None
-        return {'FINISHED'}
-    
-    @classmethod
-    def poll(cls, context):
-        """ Only run if BlendSeg instance has been instantiated.
-        """
-        return BlendSegOperator.blendseg_instance != None
-
-
-    
 class BlendSeg (object):
     """ Compute and render the intersections of a mesh.
     
@@ -304,13 +200,13 @@ class BlendSeg (object):
         print ("Loaded " + str(len(self.cor_imgs)) + " coronal images!")
         
     def create_planes(self, image_origin, image_spacing):
-        self.axi_plane = slice_plane.SlicePlane (
+        self.axi_plane = SlicePlane (
             'AXIAL', image_origin,
             self.axi_imgs, image_spacing)
-        self.sag_plane = slice_plane.SlicePlane (
+        self.sag_plane = SlicePlane (
             'SAGITTAL', image_origin,
             self.sag_imgs, image_spacing)
-        self.cor_plane = slice_plane.SlicePlane (
+        self.cor_plane = SlicePlane (
             'CORONAL', image_origin,
             self.cor_imgs, image_spacing)
         

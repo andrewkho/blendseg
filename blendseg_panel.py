@@ -1,5 +1,8 @@
 import bpy
-# from .blendseg import BlendSeg
+from .blendseg import BlendSeg
+from .blendseg import BlendSegPrefs
+from .blendseg import BlendSegOperator
+from .blendseg import BlendSegCleanupOperator
 
 # def fget(self):
 #     """Distance from origin"""
@@ -18,22 +21,5 @@ import bpy
 # if (ob is not None):
 #     print(ob.distance)
 #     ob.distance = 2
- 
-class BlendSegPanel (bpy.types.Panel):
-    # bl_space_type = "VIEW_3D"
-    # bl_region_type = "UI"
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "TOOL_PROPS"
-    bl_label = "BlendSeg"
- 
-    def draw(self, context):
-        self.layout.operator("object.blendseg",
-                             "Execute BlendSeg")
-        self.layout.operator("object.cleanblendseg",
-                             "Cleanup BlendSeg")
-        # display "distance" of the active object
-        # self.layout.label(text=str(bpy.context.active_object.distance))
 
-        
- 
-
+    

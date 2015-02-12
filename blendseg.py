@@ -32,6 +32,7 @@ class BlendSeg (object):
 
     def __init__(self,
                  mesh_name,
+                 mesh_matrix_not_identity,
                  image_dir,
                  image_ext,
                  axi_prefix,
@@ -46,6 +47,7 @@ class BlendSeg (object):
         self.cor_files = sorted(glob.glob (image_dir + cor_prefix + image_ext))
 
         self.blender_mesh_name = mesh_name
+        self.mesh_matrix_not_identity = mesh_matrix_not_identity
         self.show_timing_msgs = show_timing_msgs
 
         print("Initializing BlendSeg")
@@ -245,7 +247,7 @@ class BlendSeg (object):
             self.ap_qem = BlenderQEMeshBuilder.construct_from_blender_object(ap)
             self.cp_qem = BlenderQEMeshBuilder.construct_from_blender_object(cp)
             self.mesh_qem = BlenderQEMeshBuilder.construct_from_blender_object(mesh)
-            self.mesh_qem.is_rigid = False
+            self.mesh_qem.mesh_matrix_not_identity = self.mesh_matrix_not_identity
             if self.show_timing_msgs:
                 seconds = time() - start
                 print("Took %1.5f seconds" % seconds)

@@ -58,6 +58,7 @@ class BlendSegPanel (bpy.types.Panel):
             return
         try:
             layout.prop(context.object, 'name')
+            layout.prop(context.object, 'blendseg_matrix_not_identity')
             layout.prop(context.object, 'blendseg_image_origin')
             layout.prop(context.object, 'blendseg_path')
             layout.prop(context.object, 'blendseg_axi_prefix')
@@ -91,6 +92,7 @@ class BlendSegOperator (bpy.types.Operator):
         ob = context.object
         BlendSegOperator.blendseg_instance = BlendSeg(
             ob.name,
+            ob.blendseg_matrix_not_identity,
             ob.blendseg_path,
             ob.blendseg_image_ext,
             ob.blendseg_axi_prefix,
@@ -159,30 +161,34 @@ def create_rna_data():
     use a GUI. This is really fucking stupid but I don't know
     a better way to do it yet.
     """
+    bpy.types.Object.blendseg_matrix_not_identity = bpy.props.BoolProperty(
+        name="Use World Coordinates (slow)",
+        default=False)
     bpy.types.Object.blendseg_path = bpy.props.StringProperty(
         name="Path",
-        default="/home/andrew/workspace/imageBlowup/Atiff/")
+        default="/home/andrew/workspace/SequenceB/imageBlowup/frame00/",
+        subtype="DIR_PATH")
     bpy.types.Object.blendseg_image_ext = bpy.props.StringProperty(
         name="Image Extension",
         default="*.tif")
     bpy.types.Object.blendseg_axi_prefix = bpy.props.StringProperty(
         name="axial prefix",
-        default="axial/Aaxi")
+        default="axial/")
     bpy.types.Object.blendseg_sag_prefix = bpy.props.StringProperty(
         name="sagittal prefix",
-        default="sagittal/Asag")
+        default="sagittal/")
     bpy.types.Object.blendseg_cor_prefix = bpy.props.StringProperty(
         name="coronal prefix",
-        default="coronal/Acor")
+        default="coronal/")
     bpy.types.Object.blendseg_image_origin = bpy.props.FloatVectorProperty(
         name="Image origin",
         size=3,
-        subtype='XYZ',
+        subtype="XYZ",
         default=tuple([0.,21.5,-51]))
     bpy.types.Object.blendseg_image_spacing = bpy.props.FloatVectorProperty(
         name="Image spacing",
         size=3,
-        subtype='XYZ',
+        subtype="XYZ",
         default=tuple([0.468,0.468,0.5]))
     bpy.types.Object.blendseg_show_timing_msgs = bpy.props.BoolProperty(
         name="print timing (debug)",

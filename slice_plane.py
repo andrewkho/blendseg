@@ -137,8 +137,8 @@ class SlicePlane (object):
             idx = len(self.img_names) - 1
 
         idx = -idx
-        if (self.orientation == Orientation('SAGITTAL')):
-            idx = -idx
+        # if (self.orientation == Orientation('SAGITTAL')):
+        #     idx = -idx
 
         try:
             img = bpy.data.images[self.img_names[idx]]
@@ -290,7 +290,7 @@ class SlicePlane (object):
             plane.dimensions = self.widthf, self.heightf, 0.0
 
             plane.rotation_mode = 'XYZ'
-            plane.rotation_euler = [0.,0.,pi]
+            plane.rotation_euler = [pi,0.,0.]
         elif (self.orientation == Orientation('SAGITTAL')):
             self.widthf = self.widthp*self.spacing[1]
             self.heightf = self.heightp*self.spacing[2]
@@ -304,7 +304,7 @@ class SlicePlane (object):
             plane.dimensions = self.widthf, self.heightf, 0.0
 
             plane.rotation_mode = 'XYZ'
-            plane.rotation_euler = [-pi/2,0.,pi]
+            plane.rotation_euler = [-pi/2,0.,0.]
         else:
             raise ValueError('orientation must be in Orientation')
 

@@ -52,7 +52,7 @@ class BlendSeg (object):
 
         print("Initializing BlendSeg")
         self.load_img_stacks()
-        self.create_planes(image_origin, image_spacing)
+        self.create_planes(image_origin, image_spacing, None)
         self.mesh_qem = None
         self.mesh_tree = None
         self.is_updating = False
@@ -201,16 +201,16 @@ class BlendSeg (object):
         print ("Loaded " + str(len(self.sag_imgs)) + " sagittal images!")
         print ("Loaded " + str(len(self.cor_imgs)) + " coronal images!")
         
-    def create_planes(self, image_origin, image_spacing):
+    def create_planes(self, image_origin, image_spacing, image_orientation):
         self.axi_plane = SlicePlane (
             'AXIAL', image_origin,
-            self.axi_imgs, image_spacing)
+            self.axi_imgs, image_spacing, image_orientation)
         self.sag_plane = SlicePlane (
             'SAGITTAL', image_origin,
-            self.sag_imgs, image_spacing)
+            self.sag_imgs, image_spacing, image_orientation)
         self.cor_plane = SlicePlane (
             'CORONAL', image_origin,
-            self.cor_imgs, image_spacing)
+            self.cor_imgs, image_spacing, image_orientation)
         
         # Create a new object to hold the contours
         if (bpy.ops.object.mode_set.poll()):

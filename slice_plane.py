@@ -74,19 +74,57 @@ class SlicePlane (object):
     memory objects on Undo/Redo.
     """
 
-    def __init__ (self, orientation, origin, image_names, spacing):
+    def __init__ (self, orientation, origin, image_names, spacing, image_orientation):
         """ Constructor for the SlicePlane.
         
         orientation - string that must be one of 'AXIAL', 'SAGITTAL', 'CORONAL'
         origin - 3-tuple of floats indicating the origin of the 3D image
         image_names - list of image names (strings) associated with this plane.
         spacing - 3-tuple of floats indicating the pixel spacing x, y, z
+        image_orientation - string in ('LPI','RPI','LAI','RAI','RPS','LPS','RAS','LAS')
         """
 
         self.x_vtx_offset = -1
         self.use_transparency = False
         self.orientation = orientation
+        self.reverse = False # Reverse image indices
         self.origin = origin
+        self.plane_centre = Vector(self.origin)
+        if image_orientation == 'LPI':
+            self.plane_centre[0] = origin[0]-(len(image_names)*spacing[0])/2
+            self.plane_centre[1] = origin[1]-(len(image_names)*spacing[1])/2
+            self.plane_centre[2] = origin[2]-(len(image_names)*spacing[2])/2
+        elif image_orientation == 'RPI':
+            self.plane_centre[0] = origin[0]+(len(image_names)*spacing[0])/2
+            self.plane_centre[1] = origin[1]-(len(image_names)*spacing[1])/2
+            self.plane_centre[2] = origin[2]-(len(image_names)*spacing[2])/2
+        elif image_orientation == 'LAI':
+            self.plane_centre[0] = origin[0]-(len(image_names)*spacing[0])/2
+            self.plane_centre[1] = origin[1]+(len(image_names)*spacing[1])/2
+            self.plane_centre[2] = origin[2]-(len(image_names)*spacing[2])/2
+        elif image_orientation == 'RAI':
+            self.plane_centre[0] = origin[0]+(len(image_names)*spacing[0])/2
+            self.plane_centre[1] = origin[1]+(len(image_names)*spacing[1])/2
+            self.plane_centre[2] = origin[2]-(len(image_names)*spacing[2])/2
+        elif image_orientation == 'LPS':
+            self.plane_centre[0] = origin[0]-(len(image_names)*spacing[0])/2
+            self.plane_centre[1] = origin[1]-(len(image_names)*spacing[1])/2
+            self.plane_centre[2] = origin[2]+(len(image_names)*spacing[2])/2
+        elif image_orientation == 'RPS':
+            self.plane_centre[0] = origin[0]+(len(image_names)*spacing[0])/2
+            self.plane_centre[1] = origin[1]-(len(image_names)*spacing[1])/2
+            self.plane_centre[2] = origin[2]+(len(image_names)*spacing[2])/2
+        elif image_orientation == 'LAS':
+            self.plane_centre[0] = origin[0]-(len(image_names)*spacing[0])/2
+            self.plane_centre[1] = origin[1]+(len(image_names)*spacing[1])/2
+            self.plane_centre[2] = origin[2]+(len(image_names)*spacing[2])/2
+        elif image_orientation == 'RAS':
+            self.plane_centre[0] = origin[0]+(len(image_names)*spacing[0])/2
+            self.plane_centre[1] = origin[1]+(len(image_names)*spacing[1])/2
+            self.plane_centre[2] = origin[2]+(len(image_names)*spacing[2])/2
+        else:
+            raise ValueError("Invalid image_orientation! see constructor doc")
+
         self.img_names = image_names
         self.spacing = spacing
         
@@ -94,14 +132,14 @@ class SlicePlane (object):
         self.plane_name = "plane"+str(self.orientation)[:3]
         self.is_updated = False
             
-        plane = self.create_plane()
+        plane = self.create_plane(image_orientation)
         self.update_image(plane)
 
     def enforce_location (self, plane):
         """ This method modifies the position of the given plane object
         in order to constrain it to move only along it's normal axis.
         """
-        newloc = Vector(self.origin)
+        newloc = Vector(self.plane_centre)
         newloc[self.orientation] = plane.location[self.orientation]
 
         plane.location = newloc
@@ -125,20 +163,31 @@ class SlicePlane (object):
         if (len(self.img_names) == 0):
             return None
 
-        left = self.origin[self.orientation] - (len(self.img_names) *
-                                                self.spacing[self.orientation])/2
+        if self.reverse:
+            idx = int((self.origin[self.orientation] -
+                       loc[self.orientation])/self.spacing[self.orientation])
+        else:
+            idx = int((loc[self.orientation] -
+                       self.origin[self.orientation])/self.spacing[self.orientation])
 
-        pos = loc[self.orientation] - left
-        idx = int(pos / self.spacing[self.orientation])
+        # left = self.origin[self.orientation] - (len(self.img_names) *
+        #                                         self.spacing[self.orientation])/2
 
-        if (idx < 0): 
-            idx = 0
-        if (idx >= len(self.img_names)):
-            idx = len(self.img_names) - 1
+        # pos = loc[self.orientation] - left
+        # idx = int(pos / self.spacing[self.orientation])
 
-        idx = -idx
+        # if (idx < 0): 
+        #     idx = 0
+        # if (idx >= len(self.img_names)):
+        #     idx = len(self.img_names) - 1
+
+        # idx = -idx
         # if (self.orientation == Orientation('SAGITTAL')):
         #     idx = -idx
+
+        # left = self.origin[self.orientation]
+        # pos = loc[self.orientation]
+        # idx = int((pos-left)/self.spacing[self.orientation])
 
         try:
             img = bpy.data.images[self.img_names[idx]]
@@ -254,7 +303,7 @@ class SlicePlane (object):
 
         return obj # or is base the correct one?
 
-    def create_plane (self):
+    def create_plane (self, image_orientation):
         """ Return a blender plane.
         
         Checks if one already exists since we probably don't want more than

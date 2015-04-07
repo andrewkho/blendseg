@@ -74,7 +74,7 @@ class SlicePlane (object):
     memory objects on Undo/Redo.
     """
 
-    def __init__ (self, orientation, origin, image_names, spacing, image_orientation):
+    def __init__ (self, orientation, origin, plane_centre, image_names, spacing, image_orientation):
         """ Constructor for the SlicePlane.
         
         orientation - string that must be one of 'AXIAL', 'SAGITTAL', 'CORONAL'
@@ -89,41 +89,7 @@ class SlicePlane (object):
         self.orientation = orientation
         self.reverse = False # Reverse image indices
         self.origin = origin
-        self.plane_centre = Vector(self.origin)
-        if image_orientation == 'LPI':
-            self.plane_centre[0] = origin[0]-(len(image_names)*spacing[0])/2
-            self.plane_centre[1] = origin[1]-(len(image_names)*spacing[1])/2
-            self.plane_centre[2] = origin[2]-(len(image_names)*spacing[2])/2
-        elif image_orientation == 'RPI':
-            self.plane_centre[0] = origin[0]+(len(image_names)*spacing[0])/2
-            self.plane_centre[1] = origin[1]-(len(image_names)*spacing[1])/2
-            self.plane_centre[2] = origin[2]-(len(image_names)*spacing[2])/2
-        elif image_orientation == 'LAI':
-            self.plane_centre[0] = origin[0]-(len(image_names)*spacing[0])/2
-            self.plane_centre[1] = origin[1]+(len(image_names)*spacing[1])/2
-            self.plane_centre[2] = origin[2]-(len(image_names)*spacing[2])/2
-        elif image_orientation == 'RAI':
-            self.plane_centre[0] = origin[0]+(len(image_names)*spacing[0])/2
-            self.plane_centre[1] = origin[1]+(len(image_names)*spacing[1])/2
-            self.plane_centre[2] = origin[2]-(len(image_names)*spacing[2])/2
-        elif image_orientation == 'LPS':
-            self.plane_centre[0] = origin[0]-(len(image_names)*spacing[0])/2
-            self.plane_centre[1] = origin[1]-(len(image_names)*spacing[1])/2
-            self.plane_centre[2] = origin[2]+(len(image_names)*spacing[2])/2
-        elif image_orientation == 'RPS':
-            self.plane_centre[0] = origin[0]+(len(image_names)*spacing[0])/2
-            self.plane_centre[1] = origin[1]-(len(image_names)*spacing[1])/2
-            self.plane_centre[2] = origin[2]+(len(image_names)*spacing[2])/2
-        elif image_orientation == 'LAS':
-            self.plane_centre[0] = origin[0]-(len(image_names)*spacing[0])/2
-            self.plane_centre[1] = origin[1]+(len(image_names)*spacing[1])/2
-            self.plane_centre[2] = origin[2]+(len(image_names)*spacing[2])/2
-        elif image_orientation == 'RAS':
-            self.plane_centre[0] = origin[0]+(len(image_names)*spacing[0])/2
-            self.plane_centre[1] = origin[1]+(len(image_names)*spacing[1])/2
-            self.plane_centre[2] = origin[2]+(len(image_names)*spacing[2])/2
-        else:
-            raise ValueError("Invalid image_orientation! see constructor doc")
+        self.plane_centre = plane_centre
 
         self.img_names = image_names
         self.spacing = spacing
@@ -340,6 +306,8 @@ class SlicePlane (object):
 
             plane.rotation_mode = 'XYZ'
             plane.rotation_euler = [pi,0.,0.]
+            if image_orientation[1] == 'P':
+                self.reverse = True
         elif (self.orientation == Orientation('SAGITTAL')):
             self.widthf = self.widthp*self.spacing[1]
             self.heightf = self.heightp*self.spacing[2]
@@ -347,6 +315,8 @@ class SlicePlane (object):
 
             plane.rotation_mode = 'ZYX'
             plane.rotation_euler = [0.,-pi/2,pi/2]
+            if image_orientation[0] == 'L':
+                self.reverse = True
         elif (self.orientation == Orientation('CORONAL')):
             self.widthf = self.widthp*self.spacing[0]
             self.heightf = self.heightp*self.spacing[2]
@@ -354,6 +324,8 @@ class SlicePlane (object):
 
             plane.rotation_mode = 'XYZ'
             plane.rotation_euler = [-pi/2,0.,0.]
+            if image_orientation[2] == 'I':
+                self.reverse = True
         else:
             raise ValueError('orientation must be in Orientation')
 

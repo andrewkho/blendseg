@@ -39,6 +39,7 @@ class BlendSeg (object):
                  sag_prefix,
                  cor_prefix,
                  image_origin,
+                 image_orientation,
                  image_spacing,
                  show_timing_msgs):
         #pass
@@ -52,7 +53,7 @@ class BlendSeg (object):
 
         print("Initializing BlendSeg")
         self.load_img_stacks()
-        self.create_planes(image_origin, image_spacing, None)
+        self.create_planes(image_origin, image_spacing, image_orientation)
         self.mesh_qem = None
         self.mesh_tree = None
         self.is_updating = False
@@ -202,14 +203,37 @@ class BlendSeg (object):
         print ("Loaded " + str(len(self.cor_imgs)) + " coronal images!")
         
     def create_planes(self, image_origin, image_spacing, image_orientation):
+        plane_centre = Vector(image_origin)
+        
+        if image_orientation[0] == 'L':
+            plane_centre[0] = image_origin[0]-(len(self.sag_imgs)*image_spacing[0])/2
+        elif image_orientation[0] == 'R':
+            plane_centre[0] = image_origin[0]+(len(self.sag_imgs)*image_spacing[0])/2
+        else:
+            raise ValueError("Invalid image_orientation! see constructor doc")
+
+        if image_orientation[1] == 'P':
+            plane_centre[1] = image_origin[1]-(len(self.cor_imgs)*image_spacing[1])/2
+        elif image_orientation[1] == 'A':
+            plane_centre[1] = image_origin[1]+(len(self.cor_imgs)*image_spacing[1])/2
+        else:
+            raise ValueError("Invalid image_orientation! see constructor doc")
+
+        if image_orientation[2] == 'I':
+            plane_centre[2] = image_origin[2]-(len(self.axi_imgs)*image_spacing[2])/2
+        elif image_orientation[2] == 'S':
+            plane_centre[2] = image_origin[2]+(len(self.axi_imgs)*image_spacing[2])/2
+        else:
+            raise ValueError("Invalid image_orientation! see constructor doc")
+
         self.axi_plane = SlicePlane (
-            'AXIAL', image_origin,
+            'AXIAL', image_origin, plane_centre,
             self.axi_imgs, image_spacing, image_orientation)
         self.sag_plane = SlicePlane (
-            'SAGITTAL', image_origin,
+            'SAGITTAL', image_origin, plane_centre,
             self.sag_imgs, image_spacing, image_orientation)
         self.cor_plane = SlicePlane (
-            'CORONAL', image_origin,
+            'CORONAL', image_origin, plane_centre,
             self.cor_imgs, image_spacing, image_orientation)
         
         # Create a new object to hold the contours

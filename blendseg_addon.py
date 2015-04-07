@@ -60,6 +60,9 @@ class BlendSegPanel (bpy.types.Panel):
             layout.prop(context.object, 'name')
             layout.prop(context.object, 'blendseg_matrix_not_identity')
             layout.prop(context.object, 'blendseg_image_origin')
+            layout.prop(context.object, 'blendseg_image_LR',expand=True)
+            layout.prop(context.object, 'blendseg_image_AP',expand=True)
+            layout.prop(context.object, 'blendseg_image_IS',expand=True)
             layout.prop(context.object, 'blendseg_path')
             layout.prop(context.object, 'blendseg_axi_prefix')
             layout.prop(context.object, 'blendseg_sag_prefix')
@@ -90,6 +93,20 @@ class BlendSegOperator (bpy.types.Operator):
         # the first time, otherwise a member variable is
         # created instead, masking the static class var
         ob = context.object
+        image_orientation=[]
+        if ob.blendseg_image_LR == 'LEFT':
+            image_orientation.append('L')
+        elif ob.blendseg_image_LR == 'RIGHT':
+            image_orientation.append('R')
+        if ob.blendseg_image_AP == 'ANTERIOR':
+            image_orientation.append('A')
+        elif ob.blendseg_image_AP == 'POSTERIOR':
+            image_orientation.append('P')
+        if ob.blendseg_image_IS == 'INFERIOR':
+            image_orientation.append('I')
+        elif ob.blendseg_image_IS == 'SUPERIOR':
+            image_orientation.append('S')
+            
         BlendSegOperator.blendseg_instance = BlendSeg(
             ob.name,
             ob.blendseg_matrix_not_identity,
@@ -99,6 +116,7 @@ class BlendSegOperator (bpy.types.Operator):
             ob.blendseg_sag_prefix,
             ob.blendseg_cor_prefix,
             ob.blendseg_image_origin,
+            image_orientation,
             ob.blendseg_image_spacing,
             ob.blendseg_show_timing_msgs)
         mesh = bpy.data.objects[ob.name]
@@ -164,6 +182,15 @@ def create_rna_data():
     bpy.types.Object.blendseg_matrix_not_identity = bpy.props.BoolProperty(
         name="Use World Coordinates (slow)",
         default=False)
+    bpy.types.Object.blendseg_image_LR = bpy.props.EnumProperty(
+        name="L/R",
+        items=[("LEFT","Left", ""), ("RIGHT","Right","")])
+    bpy.types.Object.blendseg_image_AP = bpy.props.EnumProperty(
+        name="L/R",
+        items=[("ANTERIOR", "Anterior", ""), ("POSTERIOR","Posterior","")])
+    bpy.types.Object.blendseg_image_IS = bpy.props.EnumProperty(
+        name="L/R",
+        items=[("INFERIOR","Inferior", ""), ("SUPERIOR","Superior","")])
     bpy.types.Object.blendseg_path = bpy.props.StringProperty(
         name="Path",
         default="/home/andrew/workspace/SequenceB/imageBlowup/frame00/",

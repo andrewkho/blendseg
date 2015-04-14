@@ -78,10 +78,10 @@ class BlendSegOperator (bpy.types.Operator):
     bl_label = "Blendseg Operator"
 
     blendseg_instance = None
-    number2 = bpy.props.IntProperty(name="number2", default=10)
+    # number2 = bpy.props.IntProperty(name="number2", default=10)
     def execute(self, context):
         print("Executing...")
-        addon_prefs = context.user_preferences.addons[__name__].preferences
+        # addon_prefs = context.user_preferences.addons[__name__].preferences
         
         # Save cursor position and move to origin
         # This will fix the position of the contours in Blender v2.68
@@ -193,7 +193,8 @@ def create_rna_data():
         items=[("INFERIOR","Inferior", ""), ("SUPERIOR","Superior","")])
     bpy.types.Object.blendseg_path = bpy.props.StringProperty(
         name="Path",
-        default="/home/andrew/workspace/SequenceB/imageBlowup/frame00/",
+        default="/home/andrew/Downloads/JPH/",
+        # default="/home/andrew/workspace/SequenceB/imageBlowup/frame00/",
         subtype="DIR_PATH")
     bpy.types.Object.blendseg_image_ext = bpy.props.StringProperty(
         name="Image Extension",
@@ -211,12 +212,14 @@ def create_rna_data():
         name="Image origin",
         size=3,
         subtype="XYZ",
-        default=tuple([0.,21.5,-51]))
+        default=tuple([-113.35602,-192.47563,-122.81997]))
+        # default=tuple([0.,21.5,-51]))
     bpy.types.Object.blendseg_image_spacing = bpy.props.FloatVectorProperty(
         name="Image spacing",
         size=3,
         subtype="XYZ",
-        default=tuple([0.468,0.468,0.5]))
+        default=tuple([1.875,1.875,1.875]))
+        # default=tuple([0.468,0.468,0.5]))
     bpy.types.Object.blendseg_show_timing_msgs = bpy.props.BoolProperty(
         name="print timing (debug)",
         default=False)

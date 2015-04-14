@@ -205,26 +205,29 @@ class BlendSeg (object):
     def create_planes(self, image_origin, image_spacing, image_orientation):
         plane_centre = Vector(image_origin)
         
-        if image_orientation[0] == 'L':
-            plane_centre[0] = image_origin[0]-(len(self.sag_imgs)*image_spacing[0])/2
-        elif image_orientation[0] == 'R':
-            plane_centre[0] = image_origin[0]+(len(self.sag_imgs)*image_spacing[0])/2
-        else:
-            raise ValueError("Invalid image_orientation! see constructor doc")
+        plane_centre[0] = image_origin[0]+(len(self.sag_imgs)*image_spacing[0])/2 
+        # if image_orientation[0] == 'L':
+        #     plane_centre[0] = image_origin[0]+(len(self.sag_imgs)*image_spacing[0])/2 
+        # elif image_orientation[0] == 'R':
+        #     plane_centre[0] = image_origin[0]-(len(self.sag_imgs)*image_spacing[0])/2
+        # else:
+        #     raise ValueError("Invalid image_orientation! see constructor doc")
 
-        if image_orientation[1] == 'P':
-            plane_centre[1] = image_origin[1]-(len(self.cor_imgs)*image_spacing[1])/2
-        elif image_orientation[1] == 'A':
-            plane_centre[1] = image_origin[1]+(len(self.cor_imgs)*image_spacing[1])/2
-        else:
-            raise ValueError("Invalid image_orientation! see constructor doc")
+        plane_centre[1] = image_origin[1]+(len(self.cor_imgs)*image_spacing[1])/2
+        # if image_orientation[1] == 'P':
+        #     plane_centre[1] = image_origin[1]+(len(self.cor_imgs)*image_spacing[1])/2
+        # elif image_orientation[1] == 'A':
+        #     plane_centre[1] = image_origin[1]-(len(self.cor_imgs)*image_spacing[1])/2
+        # else:
+        #     raise ValueError("Invalid image_orientation! see constructor doc")
 
-        if image_orientation[2] == 'I':
-            plane_centre[2] = image_origin[2]-(len(self.axi_imgs)*image_spacing[2])/2
-        elif image_orientation[2] == 'S':
-            plane_centre[2] = image_origin[2]+(len(self.axi_imgs)*image_spacing[2])/2
-        else:
-            raise ValueError("Invalid image_orientation! see constructor doc")
+        plane_centre[2] = image_origin[2]+(len(self.axi_imgs)*image_spacing[2])/2
+        # if image_orientation[2] == 'I':
+        #     plane_centre[2] = image_origin[2]-(len(self.axi_imgs)*image_spacing[2])/2
+        # elif image_orientation[2] == 'S':
+        #     plane_centre[2] = image_origin[2]+(len(self.axi_imgs)*image_spacing[2])/2
+        # else:
+        #     raise ValueError("Invalid image_orientation! see constructor doc")
 
         self.axi_plane = SlicePlane (
             'AXIAL', image_origin, plane_centre,

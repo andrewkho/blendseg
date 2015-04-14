@@ -306,8 +306,13 @@ class SlicePlane (object):
 
             plane.rotation_mode = 'XYZ'
             plane.rotation_euler = [pi,0.,0.]
-            if image_orientation[1] == 'P':
+            if image_orientation[0] == 'R':
                 self.reverse = True
+            if image_orientation[1] == 'P':
+                plane.rotation_euler[2] = pi
+            if image_orientation[0] == 'L':
+                plane.rotation_euler[1] = pi
+                
         elif (self.orientation == Orientation('SAGITTAL')):
             self.widthf = self.widthp*self.spacing[1]
             self.heightf = self.heightp*self.spacing[2]
@@ -317,6 +322,8 @@ class SlicePlane (object):
             plane.rotation_euler = [0.,-pi/2,pi/2]
             if image_orientation[0] == 'L':
                 self.reverse = True
+            if image_orientation[2] == 'S':
+                plane.rotation_euler[0] = pi
         elif (self.orientation == Orientation('CORONAL')):
             self.widthf = self.widthp*self.spacing[0]
             self.heightf = self.heightp*self.spacing[2]
@@ -326,6 +333,10 @@ class SlicePlane (object):
             plane.rotation_euler = [-pi/2,0.,0.]
             if image_orientation[2] == 'I':
                 self.reverse = True
+            elif image_orientation[2] == 'S':
+                plane.rotation_euler[0] = pi/2
+            if image_orientation[0] == 'R':
+                plane.rotation_euler[2] = pi    
         else:
             raise ValueError('orientation must be in Orientation')
 
@@ -338,7 +349,7 @@ class SlicePlane (object):
         plane.data.uv_textures[0].data[0].image = \
             mat.texture_slots[0].texture.image
 
-        plane.location = Vector (self.origin)
+        plane.location = Vector (self.plane_centre)
 
         self.register_callback()
 

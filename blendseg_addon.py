@@ -212,12 +212,14 @@ def create_rna_data():
         name="Image origin",
         size=3,
         subtype="XYZ",
+        precision=6,
         default=tuple([-113.35602,-192.47563,-122.81997]))
         # default=tuple([0.,21.5,-51]))
     bpy.types.Object.blendseg_image_spacing = bpy.props.FloatVectorProperty(
         name="Image spacing",
         size=3,
         subtype="XYZ",
+        precision=6,
         default=tuple([1.875,1.875,1.875]))
         # default=tuple([0.468,0.468,0.5]))
     bpy.types.Object.blendseg_show_timing_msgs = bpy.props.BoolProperty(

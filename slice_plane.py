@@ -304,38 +304,45 @@ class SlicePlane (object):
             self.heightf = self.heightp*self.spacing[1]
             plane.dimensions = self.widthf, self.heightf, 0.0
 
-            plane.rotation_mode = 'XYZ'
-            plane.rotation_euler = [pi,0.,0.]
-            if image_orientation[2] == 'I':
-                self.reverse = True
+            plane.rotation_mode = 'YXZ'
+            plane.rotation_euler = [0.,pi,0.]
             if image_orientation[0] == 'R':
-                plane.rotation_euler[1] = pi
+                plane.rotation_euler[1] = 0
             if image_orientation[1] == 'P':
                 plane.rotation_euler[2] = pi
+            if image_orientation[2] == 'S':
+                self.reverse = True
+                plane.rotation_euler[1] -= pi
         elif (self.orientation == Orientation('SAGITTAL')):
             self.widthf = self.widthp*self.spacing[1]
             self.heightf = self.heightp*self.spacing[2]
             plane.dimensions = self.widthf, self.heightf, 0.0
 
-            plane.rotation_mode = 'ZYX'
-            plane.rotation_euler = [0.,-pi/2,pi/2]
+            plane.rotation_mode = 'XYZ'
+            plane.rotation_euler = [pi/2,0.,-pi/2]
             if image_orientation[0] == 'R':
                 self.reverse = True
+            if image_orientation[1] == 'P':
+                plane.rotation_euler[2] = pi/2
+                self.reverse = not self.reverse
             if image_orientation[2] == 'S':
-                plane.rotation_euler[0] = pi
+                plane.rotation_euler[0] = -pi/2
+                self.reverse = not self.reverse
         elif (self.orientation == Orientation('CORONAL')):
             self.widthf = self.widthp*self.spacing[0]
             self.heightf = self.heightp*self.spacing[2]
             plane.dimensions = self.widthf, self.heightf, 0.0
 
             plane.rotation_mode = 'XYZ'
-            plane.rotation_euler = [-pi/2,0.,0.]
-            if image_orientation[2] == 'I':
-                self.reverse = True
-            elif image_orientation[2] == 'S':
-                plane.rotation_euler[0] = pi/2
+            plane.rotation_euler = [pi/2,0.,0.]
             if image_orientation[0] == 'L':
-                plane.rotation_euler[2] = pi    
+                plane.rotation_euler[2] = pi
+            if image_orientation[1] == 'P':
+                plane.rotation_euler[2] -= pi
+                self.reverse = True
+            if image_orientation[2] == 'S':
+                plane.rotation_euler[0] = -pi/2
+                plane.rotation_euler[2] -= pi
         else:
             raise ValueError('orientation must be in Orientation')
 
